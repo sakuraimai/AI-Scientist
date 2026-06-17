@@ -1,0 +1,17 @@
+# Title: Entropy Regularization: Encouraging Exploration in Language Model Training
+# Experiment description: Modify the `forward` method in the `GPT` class to include an entropy regularization term in the loss function. Compute the entropy of the logits using the formula -sum(p * log(p)), where p is the softmax of the logits. Introduce a regularization coefficient (lambda) to balance the original loss and the entropy term. The final loss will be computed as: final_loss = original_loss + lambda * entropy_loss. Evaluate the impact on training dynamics, validation loss, and inference quality.
+## Run 0: Baseline
+Results: {'shakespeare_char': {'final_train_loss_mean': 0.8141325414180756, 'best_val_loss_mean': 1.4749533534049988, 'total_train_time_mean': 266.7413594722748, 'avg_inference_tokens_per_second_mean': 380.54839904651044}}
+Description: Baseline results.
+
+## Run 1: Entropy Regularization with lambda = 0.01
+Results: {'shakespeare_char': {'final_train_loss_mean': 0.8147642910480499, 'best_val_loss_mean': 1.491085708141327, 'total_train_time_mean': 255.58203315734863, 'avg_inference_tokens_per_second_mean': 381.53652212427636}}
+Description: This run introduces entropy regularization with a lambda value of 0.01. The final loss is computed as: final_loss = original_loss + lambda * entropy_loss.
+
+## Run 2: Entropy Regularization with lambda = 0.1
+Results: {'shakespeare_char': {'final_train_loss_mean': 0.8913407325744629, 'best_val_loss_mean': 1.613168478012085, 'total_train_time_mean': 260.88017070293427, 'avg_inference_tokens_per_second_mean': 363.1650440222201}}
+Description: This run introduces entropy regularization with a lambda value of 0.1. The final loss is computed as: final_loss = original_loss + lambda * entropy loss.
+
+## Run 3: Entropy Regularization with lambda = 0.5
+Results: {'shakespeare_char': {'final_train_loss_mean': 1.1371352672576904, 'best_val_loss_mean': 2.0646629333496094, 'total_train_time_mean': 259.52552831172943, 'avg_inference_tokens_per_second_mean': 367.76895043749096}}
+Description: This run introduces entropy regularization with a lambda value of 0.5. The final loss is computed as: final_loss = original_loss + lambda * entropy loss.

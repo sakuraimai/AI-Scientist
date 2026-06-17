@@ -172,3 +172,27 @@ ICLR2022-OpenReviewData/
 templates/*/run_0/
 templates/*/*.png
 results/*
+# venv
+ai_scientist/
+
+# 学習データ・バイナリ
+data/*/train.bin
+data/*/val.bin
+data/*/test.bin
+*.npy
+*.pt
+*.pth
+*.pkl
+
+# モデルチェックポイント
+ckpt*.pt
+**/checkpoint*
+**/ckpt/
+
+# Python キャッシュ
+__pycache__/
+*.pyc
+
+# その他
+.DS_Store
+*.swp
