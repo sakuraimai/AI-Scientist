@@ -1,0 +1,18 @@
+[
+  {
+    "Name": "hybrid_typology_embedding",
+    "Title": "Hybrid Typology-Embedding Clustering for Low-Resource Asian NER",
+    "Experiment": "Replace the pure embedding agglomerative clustering in cluster_embedding() with a hybrid method: first compute XLM-R language-ID [CLS] embeddings, then apply soft typology constraints (HEAD_FINAL vs HEAD_INITIAL) as a penalty term in the distance matrix before clustering. Use elbow method or silhouette score to select k instead of fixing k=2. Compare Mongolian entity-level F1 against the baseline linguistic and embedding conditions.",
+    "Interestingness": 8,
+    "Feasibility": 7,
+    "Novelty": 7
+  },
+  {
+    "Name": "dynamic_k_selection",
+    "Title": "Automatic Cluster Count Selection for Multilingual NER Transfer",
+    "Experiment": "Modify cluster_embedding() to automatically select the number of clusters using the elbow method or silhouette score on language embeddings, instead of fixing n_clusters=2. Also try K-means as an alternative to Agglomerative clustering. Evaluate whether data-driven k selection improves Mongolian (mn) F1 over the fixed-k baseline while keeping the four evaluation conditions unchanged.",
+    "Interestingness": 7,
+    "Feasibility": 8,
+    "Novelty": 6
+  }
+]
