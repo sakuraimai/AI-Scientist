@@ -1,0 +1,93 @@
+{
+  "linguistic_clustering": {
+    "means": {
+      "ja": 0.1750053798149344,
+      "ko": 0.34096265971963774,
+      "mn": 0.16949152542372883,
+      "ru": 0.19219054789363813,
+      "en": 0.11547456340167045,
+      "mongolian_f1": 0.16949152542372883,
+      "average_f1": 0.19376936694622304
+    },
+    "train_langs": [
+      "ja",
+      "ko",
+      "mn"
+    ],
+    "cluster_map": {
+      "ja": 0,
+      "ko": 0,
+      "mn": 0,
+      "ru": 1,
+      "en": 1
+    }
+  },
+  "embedding_clustering": {
+    "means": {
+      "ja": 0.31508379888268156,
+      "ko": 0.533092037228542,
+      "mn": 0.4135338345864662,
+      "ru": 0.3440648115533639,
+      "en": 0.33459327255979415,
+      "mongolian_f1": 0.4135338345864662,
+      "average_f1": 0.392316931566219
+    },
+    "train_langs": [
+      "ja",
+      "ko",
+      "mn"
+    ],
+    "cluster_map": {
+      "ja": 0,
+      "ko": 0,
+      "mn": 0,
+      "ru": 1,
+      "en": 1
+    }
+  },
+  "per_language": {
+    "means": {
+      "mn": 0.0,
+      "mongolian_f1": 0.0,
+      "average_f1": 0.0
+    },
+    "train_langs": [
+      "mn"
+    ],
+    "cluster_map": {}
+  },
+  "all_mixed": {
+    "means": {
+      "ja": 0.4845572617430969,
+      "ko": 0.6695681063122924,
+      "mn": 0.652892561983471,
+      "ru": 0.7285804615871009,
+      "en": 0.6370273883385322,
+      "mongolian_f1": 0.652892561983471,
+      "average_f1": 0.6375863903246607
+    },
+    "train_langs": [
+      "ja",
+      "ko",
+      "mn",
+      "ru",
+      "en"
+    ],
+    "cluster_map": {}
+  },
+  "metadata": {
+    "languages": [
+      "ja",
+      "ko",
+      "mn",
+      "ru",
+      "en"
+    ],
+    "target_lang": "mn",
+    "primary_metric": "mongolian_f1",
+    "model": "xlm-roberta-base",
+    "seed": 1,
+    "max_epochs": 2,
+    "quick": false
+  }
+}

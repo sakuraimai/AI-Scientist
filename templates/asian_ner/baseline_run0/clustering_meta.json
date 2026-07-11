@@ -1,0 +1,53 @@
+{
+  "linguistic": {
+    "method": "head_parameter",
+    "head_final": [
+      "ja",
+      "ko",
+      "mn"
+    ],
+    "head_initial": [
+      "en",
+      "ru"
+    ],
+    "n_clusters": 2,
+    "cluster_map": {
+      "ja": 0,
+      "ko": 0,
+      "mn": 0,
+      "ru": 1,
+      "en": 1
+    }
+  },
+  "embedding": {
+    "method": "agglomerative",
+    "n_clusters": 2,
+    "linkage": "ward",
+    "distance_metric": "euclidean",
+    "embedding_source": "xlm-roberta-base_lang_id_cls",
+    "cluster_map": {
+      "ja": 0,
+      "ko": 0,
+      "mn": 0,
+      "ru": 1,
+      "en": 1
+    }
+  },
+  "config": {
+    "languages": [
+      "ja",
+      "ko",
+      "mn",
+      "ru",
+      "en"
+    ],
+    "target_lang": "mn",
+    "seed": 1,
+    "max_epochs": 2,
+    "max_train_per_lang": 500,
+    "max_embed_samples_per_lang": 200,
+    "max_eval_samples_per_lang": 0,
+    "n_clusters": 2,
+    "quick": false
+  }
+}
