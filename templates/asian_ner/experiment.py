@@ -30,6 +30,7 @@ import numpy as np
 import torch
 from datasets import Dataset, concatenate_datasets, load_dataset
 from sklearn.cluster import AgglomerativeClustering
+from sklearn.metrics import pairwise_distances, silhouette_score
 from transformers import (
     AutoModelForSequenceClassification,
     AutoModelForTokenClassification,
@@ -117,8 +118,15 @@ def set_seed(seed: int) -> None:
 # ---------------------------------------------------------------------------
 
 
+WIKIANN_DATASET = "unimelb-nlp/wikiann"
+
+
 def load_wikiann_split(lang: str, split: str) -> Dataset:
-    ds = load_dataset("wikiann", lang, split=split, trust_remote_code=True)
+    import datasets as _datasets
+
+    major = int(_datasets.__version__.split(".")[0])
+    kwargs = {"trust_remote_code": True} if major < 3 else {}
+    ds = load_dataset(WIKIANN_DATASET, lang, split=split, **kwargs)
     return ds
 
 
@@ -180,6 +188,9 @@ def prepare_ner_dataset(
 # ---------------------------------------------------------------------------
 # Clustering  (EVOLVE-BLOCK — AI Scientist may modify these functions)
 # ---------------------------------------------------------------------------
+
+# run_1 hypothesis: typology soft-constraint on embedding distances + silhouette k.
+HYBRID_TYPOLOGY_PENALTY = 1.0
 
 
 def cluster_linguistic(langs: List[str]) -> Dict[str, int]:
@@ -262,23 +273,80 @@ def _sentence_cls_embeddings(
     return pooled, tokenizer
 
 
+def _typology_id(lang: str) -> int:
+    return 0 if lang in HEAD_FINAL else 1
+
+
+def _hybrid_lang_distance_matrix(
+    langs: List[str],
+    embeddings: np.ndarray,
+    penalty_weight: float,
+) -> np.ndarray:
+    """Euclidean embedding distance + penalty when typology groups differ."""
+    dist = pairwise_distances(embeddings, metric="euclidean")
+    scale = float(dist[np.triu_indices_from(dist, k=1)].mean()) if len(langs) > 1 else 1.0
+    hybrid = dist.copy()
+    for i in range(len(langs)):
+        for j in range(i + 1, len(langs)):
+            if _typology_id(langs[i]) != _typology_id(langs[j]):
+                hybrid[i, j] += penalty_weight * scale
+                hybrid[j, i] = hybrid[i, j]
+    return hybrid
+
+
+def _select_k_by_silhouette(
+    dist: np.ndarray,
+    fallback_k: int,
+    min_k: int = 2,
+    max_k: int = 4,
+) -> Tuple[int, float]:
+    n = dist.shape[0]
+    max_k = min(max_k, n - 1)
+    best_k, best_score = fallback_k, -1.0
+    for k in range(min_k, max_k + 1):
+        labels = AgglomerativeClustering(
+            n_clusters=k,
+            metric="precomputed",
+            linkage="average",
+        ).fit_predict(dist)
+        if len(set(labels)) < 2:
+            continue
+        score = float(silhouette_score(dist, labels, metric="precomputed"))
+        if score > best_score:
+            best_score = score
+            best_k = k
+    return best_k, best_score
+
+
 def cluster_embedding(
     langs: List[str],
     cfg: RunConfig,
     device: torch.device,
 ) -> Tuple[Dict[str, int], Dict]:
-    """Embedding-based clustering following Shaffer (2021) / Imai et al. (2023)."""
+    """Hybrid typology-embedding clustering (run_1): penalize cross-typology pairs, silhouette k."""
     pooled, _ = _sentence_cls_embeddings(langs, cfg, device)
     keys = list(langs)
     matrix = np.stack([pooled[k] for k in keys], axis=0)
-    clustering = AgglomerativeClustering(n_clusters=cfg.n_clusters)
-    labels = clustering.fit_predict(matrix)
+    hybrid_dist = _hybrid_lang_distance_matrix(
+        keys, matrix, penalty_weight=HYBRID_TYPOLOGY_PENALTY
+    )
+    n_clusters, sil_score = _select_k_by_silhouette(
+        hybrid_dist, fallback_k=cfg.n_clusters, max_k=min(4, len(keys) - 1)
+    )
+    labels = AgglomerativeClustering(
+        n_clusters=n_clusters,
+        metric="precomputed",
+        linkage="average",
+    ).fit_predict(hybrid_dist)
     cluster_map = {lang: int(label) for lang, label in zip(keys, labels)}
     meta = {
-        "method": "agglomerative",
-        "n_clusters": cfg.n_clusters,
-        "linkage": "ward",
-        "distance_metric": "euclidean",
+        "method": "hybrid_typology_embedding",
+        "n_clusters": n_clusters,
+        "n_clusters_selection": "silhouette",
+        "silhouette_score": sil_score,
+        "linkage": "average",
+        "distance_metric": "euclidean_embedding_plus_typology_penalty",
+        "typology_penalty_weight": HYBRID_TYPOLOGY_PENALTY,
         "embedding_source": "xlm-roberta-base_lang_id_cls",
         "cluster_map": cluster_map,
     }

@@ -1,0 +1,8 @@
+# Minimal deps for templates/asian_ner (RunPod / standalone runs).
+# Use unimelb-nlp/wikiann (namespaced); legacy "wikiann" breaks huggingface_hub>=1.0.
+datasets>=2.19,<3
+transformers
+seqeval
+scikit-learn
+accelerate
+matplotlib
