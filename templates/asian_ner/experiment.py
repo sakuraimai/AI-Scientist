@@ -8,7 +8,7 @@ Compares five multilingual NER training regimes on WikiAnn:
   4. all_mixed              — train on all languages jointly
   5. matched_random         — same train budget N as embedding, random 5-lang sample
 
-Primary metric: Mongolian (mn) entity-level F1 under 100-sample WikiAnn regime.
+Primary metric: Mongolian (mn) entity-level F1; also reports low_resource_macro_f1 on pool stratum.
 
 Usage:
   python experiment.py --out_dir run_0
@@ -47,17 +47,26 @@ try:
 except ImportError:  # pragma: no cover
     seqeval_f1 = None
 
+from language_pool import resolve_experiment_languages
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
 MODEL_NAME = "xlm-roberta-base"
-LANGUAGES = ["ja", "ko", "mn", "ru", "en"]
+
+_POOL_META = resolve_experiment_languages()
+LANGUAGES: List[str] = _POOL_META["languages"]
+LANG_TRAIN_COUNTS: Dict[str, int] = _POOL_META["train_counts"]
+LOW_RESOURCE_LANGS: List[str] = _POOL_META["low_resource_langs"]
+LOW_RESOURCE_THRESHOLD: int = _POOL_META["low_resource_threshold"]
+
 TARGET_LANG = "mn"
 PRIMARY_METRIC_KEY = "mongolian_f1"
+LOW_RESOURCE_METRIC_KEY = "low_resource_macro_f1"
 
 HEAD_FINAL = {"ja", "ko", "mn"}
-HEAD_INITIAL = {"en", "ru"}
+HEAD_INITIAL = {"ru"}
 
 LABEL_LIST = ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]
 LABEL2ID = {label: i for i, label in enumerate(LABEL_LIST)}
@@ -334,6 +343,7 @@ def apply_training_budget(
 
 # ---------------------------------------------------------------------------
 # Clustering  (EVOLVE-BLOCK — AI Scientist may modify these functions)
+# Also modifiable: post_cluster_train_langs(), augment_train_raw()
 # ---------------------------------------------------------------------------
 
 # run_1 hypothesis: typology soft-constraint on embedding distances + silhouette k.
@@ -505,6 +515,27 @@ def langs_in_cluster(target: str, cluster_map: Dict[str, int]) -> List[str]:
     return [l for l, c in cluster_map.items() if c == cid]
 
 
+def post_cluster_train_langs(
+    target: str,
+    train_langs: List[str],
+    cluster_map: Dict[str, int],
+    cfg: RunConfig,
+    source: str,
+) -> List[str]:
+    """EVOLVE-BLOCK: fallback or augment language set after clustering."""
+    return train_langs
+
+
+def augment_train_raw(
+    raw_ds: Dataset,
+    train_langs: List[str],
+    cfg: RunConfig,
+    condition_name: str,
+) -> Dataset:
+    """EVOLVE-BLOCK: mn oversample, language reweighting, etc."""
+    return raw_ds
+
+
 # ---------------------------------------------------------------------------
 # NER train / eval
 # ---------------------------------------------------------------------------
@@ -566,7 +597,11 @@ def train_and_evaluate_ner(
     for lang in eval_langs:
         scores[lang] = evaluate_lang_f1(model, tokenizer, lang, cfg, device)
     scores[PRIMARY_METRIC_KEY] = scores.get(TARGET_LANG, 0.0)
-    scores["average_f1"] = float(np.mean(list(scores.values())))
+    low_scores = [scores[lang] for lang in LOW_RESOURCE_LANGS if lang in scores]
+    scores[LOW_RESOURCE_METRIC_KEY] = (
+        float(np.mean(low_scores)) if low_scores else 0.0
+    )
+    scores["average_f1"] = float(np.mean([scores[l] for l in eval_langs if l in scores]))
     return scores, train_meta
 
 
@@ -634,6 +669,7 @@ def run_condition(
     budget_meta: Dict = {}
     if train_ds is None:
         raw_ds = raw_train_ds or load_raw_ner_dataset(train_langs, "train", cfg)
+        raw_ds = augment_train_raw(raw_ds, train_langs, cfg, name)
         raw_ds, budget_meta = apply_training_budget(raw_ds, cfg, name)
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         train_ds = tokenize_ner_dataset(raw_ds, tokenizer, cfg.max_length)
@@ -714,8 +750,13 @@ def build_clustering_meta(
             "cluster_map": ling_map,
         },
         "embedding": emb_meta,
+        "language_pool": _POOL_META,
         "config": {
             "languages": LANGUAGES,
+            "hypothesis_controls": _POOL_META["hypothesis_controls"],
+            "pool_name": _POOL_META["pool_name"],
+            "low_resource_langs": LOW_RESOURCE_LANGS,
+            "low_resource_threshold": LOW_RESOURCE_THRESHOLD,
             "target_lang": TARGET_LANG,
             "seed": cfg.seed,
             "max_epochs": cfg.max_epochs,
@@ -775,13 +816,26 @@ def run_experiment(cfg: RunConfig) -> Dict:
         json.dump(clustering_meta, f, indent=2)
 
     eval_langs = LANGUAGES
-    emb_train_langs = langs_in_cluster(TARGET_LANG, emb_map)
+    emb_train_langs = post_cluster_train_langs(
+        TARGET_LANG,
+        langs_in_cluster(TARGET_LANG, emb_map),
+        emb_map,
+        cfg,
+        source="embedding",
+    )
     emb_n_samples = count_train_samples(emb_train_langs, cfg)
+    ling_train_langs = post_cluster_train_langs(
+        TARGET_LANG,
+        langs_in_cluster(TARGET_LANG, ling_map),
+        ling_map,
+        cfg,
+        source="linguistic",
+    )
 
     results = {
         "linguistic_clustering": run_condition(
             "linguistic_clustering",
-            train_langs=langs_in_cluster(TARGET_LANG, ling_map),
+            train_langs=ling_train_langs,
             eval_langs=eval_langs,
             cluster_map=ling_map,
             cfg=cfg,
@@ -819,8 +873,10 @@ def run_experiment(cfg: RunConfig) -> Dict:
         ),
         "metadata": {
             "languages": LANGUAGES,
+            "language_pool": _POOL_META,
             "target_lang": TARGET_LANG,
             "primary_metric": PRIMARY_METRIC_KEY,
+            "low_resource_metric": LOW_RESOURCE_METRIC_KEY,
             "model": MODEL_NAME,
             "seed": cfg.seed,
             "max_epochs": cfg.max_epochs,
@@ -846,7 +902,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--batch_size", type=int, default=16)
     p.add_argument("--learning_rate", type=float, default=5e-5)
     p.add_argument("--max_length", type=int, default=128)
-    p.add_argument("--max_train_per_lang", type=int, default=500)
+    p.add_argument("--max_train_per_lang", type=int, default=0)
     p.add_argument("--max_embed_samples_per_lang", type=int, default=200)
     p.add_argument(
         "--num_seeds",
@@ -869,7 +925,7 @@ if __name__ == "__main__":
     args = parse_args()
     cfg = build_config(args)
 
-    num_seeds = args.num_seeds if args.num_seeds is not None else (1 if cfg.quick else 3)
+    num_seeds = args.num_seeds if args.num_seeds is not None else 1
     seeds = [cfg.seed + i for i in range(num_seeds)]
     all_runs: Dict[str, Dict] = {}
 

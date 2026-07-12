@@ -1,0 +1,1558 @@
+{
+  "dataset": "unimelb-nlp/wikiann",
+  "rules": {
+    "n_min": 50,
+    "n_max": 50000,
+    "t_low": 500,
+    "pool_mode": "asian_east_sea",
+    "definition": {
+      "label": "East + Southeast Asia (recommended)",
+      "description": "Core East Asian families plus SEA Austronesian/Austroasiatic. Excludes South Asia (Indo-Iranian), West Asia (Semitic), Turkic, Dravidian. Closest to Japan-defense narrative while staying Imai-style (rule union, no hand-picking).",
+      "allowed_top_families": [
+        "Sino-Tibetan",
+        "Japonic",
+        "Koreanic",
+        "Tai-Kadai",
+        "Austroasiatic",
+        "Austronesian",
+        "Mongolic"
+      ],
+      "wikiann_expected": {
+        "in_range": 28,
+        "low_resource": 19,
+        "high_resource": 9
+      },
+      "includes": [
+        "ja",
+        "ko",
+        "mn",
+        "zh",
+        "th",
+        "vi",
+        "id",
+        "ms",
+        "km",
+        "my",
+        "bo"
+      ],
+      "excludes_examples": [
+        "en",
+        "ru",
+        "ar",
+        "fa",
+        "bn",
+        "hi",
+        "tr",
+        "ta",
+        "te"
+      ]
+    }
+  },
+  "summary": {
+    "total_configs": 176,
+    "loaded_ok": 176,
+    "load_failed": 0,
+    "low_resource_count": 100,
+    "high_resource_in_range": 76,
+    "proposed_pool_size": 28,
+    "pool_low_resource": 19,
+    "pool_high_resource": 9
+  },
+  "current_five": [
+    {
+      "lang": "ja",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ko",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "mn",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ru",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "en",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    }
+  ],
+  "proposed_pool": [
+    {
+      "lang": "ace",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "bo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "cdo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "ceb",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "gan",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "hak",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "ilo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "jv",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "km",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austroasiatic"
+    },
+    {
+      "lang": "mg",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "mi",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "min",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "mn",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Mongolic"
+    },
+    {
+      "lang": "my",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "su",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "war",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "wuu",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "zh-classical",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "zh-min-nan",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "tl",
+      "train": 10000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "id",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "ja",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Japonic"
+    },
+    {
+      "lang": "ko",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Koreanic"
+    },
+    {
+      "lang": "ms",
+      "train": 20000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Austronesian"
+    },
+    {
+      "lang": "th",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Tai-Kadai"
+    },
+    {
+      "lang": "vi",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Austroasiatic"
+    },
+    {
+      "lang": "zh",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    },
+    {
+      "lang": "zh-yue",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true,
+      "family": "Sino-Tibetan"
+    }
+  ],
+  "all_in_range": [
+    {
+      "lang": "ace",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "af",
+      "train": 5000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "als",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "am",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "an",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ang",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ar",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "arc",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "arz",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "as",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ast",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ay",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "az",
+      "train": 10000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ba",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "bar",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "bat-smg",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "be",
+      "train": 15000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "be-x-old",
+      "train": 5000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "bg",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "bh",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "bn",
+      "train": 10000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "bo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "br",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "bs",
+      "train": 15000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ca",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "cbk-zam",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "cdo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ce",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ceb",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ckb",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "co",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "crh",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "cs",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "csb",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "cv",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "cy",
+      "train": 10000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "da",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "de",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "diq",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "dv",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "el",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "eml",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "en",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "eo",
+      "train": 15000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "es",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "et",
+      "train": 15000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "eu",
+      "train": 10000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ext",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "fa",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "fi",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "fiu-vro",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "fo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "fr",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "frr",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "fur",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "fy",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ga",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "gan",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "gd",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "gl",
+      "train": 15000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "gn",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "gu",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "hak",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "he",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "hi",
+      "train": 5000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "hr",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "hsb",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "hu",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "hy",
+      "train": 15000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ia",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "id",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ig",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ilo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "io",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "is",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "it",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ja",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "jbo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "jv",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ka",
+      "train": 10000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "kk",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "km",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "kn",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ko",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ksh",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ku",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ky",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "la",
+      "train": 5000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "lb",
+      "train": 5000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "li",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "lij",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "lmo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ln",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "lt",
+      "train": 10000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "lv",
+      "train": 10000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "map-bms",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "mg",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "mhr",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "mi",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "min",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "mk",
+      "train": 10000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ml",
+      "train": 10000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "mn",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "mr",
+      "train": 5000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ms",
+      "train": 20000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "mt",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "mwl",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "my",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "mzn",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "nap",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "nds",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ne",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "nl",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "nn",
+      "train": 20000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "no",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "nov",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "oc",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "or",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "os",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "pa",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "pdc",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "pl",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "pms",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "pnb",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ps",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "pt",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "qu",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "rm",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ro",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ru",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "rw",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "sa",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "sah",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "scn",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "sco",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "sd",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "sh",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "si",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "simple",
+      "train": 20000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "sk",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "sl",
+      "train": 15000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "so",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "sq",
+      "train": 5000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "sr",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "su",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "sv",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "sw",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "szl",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "ta",
+      "train": 15000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "te",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "tg",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "th",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "tk",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "tl",
+      "train": 10000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "tr",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "tt",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ug",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "uk",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "ur",
+      "train": 20000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "uz",
+      "train": 1000,
+      "test": 1000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "vec",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "vep",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "vi",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "vls",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "vo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "wa",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "war",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "wuu",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "xmf",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "yi",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "yo",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "zea",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "zh",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    },
+    {
+      "lang": "zh-classical",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "zh-min-nan",
+      "train": 100,
+      "test": 100,
+      "low_resource": true,
+      "in_range": true
+    },
+    {
+      "lang": "zh-yue",
+      "train": 20000,
+      "test": 10000,
+      "low_resource": false,
+      "in_range": true
+    }
+  ]
+}

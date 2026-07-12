@@ -23,10 +23,9 @@ LANGUAGES = ["ja", "ko", "mn", "ru", "en"]
 PRIMARY_METRIC = "mongolian_f1"
 
 # CREATE LEGEND -- ADD RUNS HERE THAT WILL BE PLOTTED
+# run_0 = human run_2 hybrid baseline; run_1+ = AI Scientist experiments
 labels = {
-    "run_0": "Baseline (pure emb)",
-    "run_1": "Hybrid PoC",
-    "run_2": "Hybrid full",
+    "run_0": "Human hybrid (run_2)",
 }
 
 

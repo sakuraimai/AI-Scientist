@@ -6,3 +6,4 @@ seqeval
 scikit-learn
 accelerate
 matplotlib
+lang2vec

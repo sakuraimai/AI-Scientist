@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "reference": "Imai et al. (ACL 2023 SRW) IE-all baseline — replace Indo-European with a rule-based Asian family union on WikiAnn.",
+  "dataset": "unimelb-nlp/wikiann",
+  "family_source": "lang2vec URIEL family_features.npz (F_* top-level family per ISO code)",
+  "resolution": [
+    "WikiAnn config code → ISO 639-3 via lang2vec letter_codes.json",
+    "Dialect configs (e.g. zh-classical) → base code before '-' when needed"
+  ],
+  "unmapped_policy": "exclude",
+  "size_bounds": {
+    "n_min": 50,
+    "n_max": 50000
+  },
+  "low_resource_threshold": 500,
+  "definitions": {
+    "asian_east_sea": {
+      "label": "East + Southeast Asia (recommended)",
+      "description": "Core East Asian families plus SEA Austronesian/Austroasiatic. Excludes South Asia (Indo-Iranian), West Asia (Semitic), Turkic, Dravidian. Closest to Japan-defense narrative while staying Imai-style (rule union, no hand-picking).",
+      "allowed_top_families": [
+        "Sino-Tibetan",
+        "Japonic",
+        "Koreanic",
+        "Tai-Kadai",
+        "Austroasiatic",
+        "Austronesian",
+        "Mongolic"
+      ],
+      "wikiann_expected": {
+        "in_range": 28,
+        "low_resource": 19,
+        "high_resource": 9
+      },
+      "includes": ["ja", "ko", "mn", "zh", "th", "vi", "id", "ms", "km", "my", "bo"],
+      "excludes_examples": ["en", "ru", "ar", "fa", "bn", "hi", "tr", "ta", "te"]
+    },
+    "asian_broad": {
+      "label": "Broad Asia (Imai IE-all parallel)",
+      "description": "Larger union: East/SE Asia plus South/West/Central Asia branches represented in WikiAnn (Indo-Iranian, Semitic, Turkic, Dravidian, Kartvelian).",
+      "allowed_top_families": [
+        "Sino-Tibetan",
+        "Japonic",
+        "Koreanic",
+        "Tai-Kadai",
+        "Austroasiatic",
+        "Austronesian",
+        "Mongolic",
+        "Tungusic",
+        "Turkic",
+        "Dravidian",
+        "Hmong-Mien",
+        "Kartvelian",
+        "Semitic",
+        "Indo-Iranian"
+      ],
+      "wikiann_expected": {
+        "in_range": 46,
+        "low_resource": 28,
+        "high_resource": 18
+      }
+    },
+    "asian_core": {
+      "label": "East Asia core (minimal)",
+      "description": "Smallest defensible set: no Austronesian SEA expansion. Good for smoke tests only.",
+      "allowed_top_families": [
+        "Sino-Tibetan",
+        "Japonic",
+        "Koreanic",
+        "Tai-Kadai",
+        "Austroasiatic",
+        "Mongolic"
+      ],
+      "wikiann_expected": {
+        "in_range": 16,
+        "low_resource": 10,
+        "high_resource": 6
+      }
+    }
+  },
+  "recommended": "asian_east_sea",
+  "mn_hypothesis_controls": ["ru"],
+  "active_experiment_pool": "asian_east_sea",
+  "eval_policy": "Evaluate on all pool languages (not mn-only). Report low_resource_macro_f1 for train<=500 stratum within pool.",
+  "train_policy": "Per-condition clustering/random selection inside pool (unchanged harness)."
+}
