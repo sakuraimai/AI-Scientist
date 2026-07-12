@@ -27,7 +27,7 @@
       "embedding": {"mn": 1, "ru": 0, "ja": 1, "ko": 1},
       "linguistic": {"mn": 0, "ru": 1, "ja": 0, "ko": 0}
     },
-    "ai_success_criterion": "embedding_clustering mongolian_f1 > 0.2283 (beat matched_random)"
+    "ai_success_criterion": "embedding_clustering and/or linguistic_clustering beat matched_random on low_resource_macro_f1 and/or average_f1 (pool-wide transfer); mongolian_f1 is illustrative only. Legacy cap500 floor: low_resource_macro_f1 matched_random=0.2665, embedding=0.1631."
   },
   "legacy_5lang": {
     "note": "Pre-pool human runs on ja,ko,mn,ru,en — reference only, not launch floor",

@@ -6,9 +6,11 @@ Compares five multilingual NER training regimes on WikiAnn:
   2. embedding_clustering   — XLM-R [CLS] embeddings + agglomerative clustering
   3. per_language           — monolingual baseline (Mongolian only for mn metric)
   4. all_mixed              — train on all languages jointly
-  5. matched_random         — same train budget N as embedding, random 5-lang sample
+  5. matched_random         — same train budget N_ref as largest cluster, random pool sample
 
-Primary metric: Mongolian (mn) entity-level F1; also reports low_resource_macro_f1 on pool stratum.
+Primary metrics: low_resource_macro_f1 and average_f1 (pool-wide); mongolian_f1 illustrative.
+
+Default protocol: cap=0 (full WikiAnn) + downsample all_mixed/matched_random to largest-cluster N_ref.
 
 Usage:
   python experiment.py --out_dir run_0
@@ -84,10 +86,15 @@ CONDITIONS = [
 
 MATCHED_RANDOM_SEED_OFFSET = 4242
 UPSAMPLE_EXCLUDE_CONDITIONS = {"per_language", "all_mixed"}
+DOWNSAMPLE_CONDITIONS = {"all_mixed", "matched_random"}
 UPSAMPLE_SEED_OFFSETS = {
     "linguistic_clustering": 1000,
     "embedding_clustering": 2000,
     "matched_random": 3000,
+}
+DOWNSAMPLE_SEED_OFFSETS = {
+    "all_mixed": 4000,
+    "matched_random": 5000,
 }
 
 
@@ -106,10 +113,15 @@ class RunConfig:
     n_clusters: int
     quick: bool
     upsample_to: Optional[str] = None
+    downsample_to: Optional[str] = None
+    budget_n_ref: Optional[int] = None
 
 
 def build_config(args: argparse.Namespace) -> RunConfig:
     quick = args.quick
+    downsample_to = None
+    if not quick and args.downsample_to and args.downsample_to != "none":
+        downsample_to = args.downsample_to
     return RunConfig(
         out_dir=args.out_dir,
         seed=args.seed,
@@ -124,6 +136,7 @@ def build_config(args: argparse.Namespace) -> RunConfig:
         n_clusters=2,
         quick=quick,
         upsample_to=args.upsample_to,
+        downsample_to=downsample_to,
     )
 
 
@@ -227,12 +240,58 @@ def tokenize_ner_dataset(raw_ds: Dataset, tokenizer, max_length: int) -> Dataset
 
 
 def build_train_pool(cfg: RunConfig) -> Dataset:
-    """All capped training sentences from the fixed language pool."""
+    """All training sentences from the fixed language pool (respecting per-lang cap)."""
     return load_raw_ner_dataset(LANGUAGES, "train", cfg)
 
 
+def effective_train_count(lang: str, cfg: RunConfig) -> int:
+    """WikiAnn train count after per-language cap (0 = no cap)."""
+    raw = LANG_TRAIN_COUNTS[lang]
+    if cfg.max_train_per_lang <= 0:
+        return raw
+    return min(raw, cfg.max_train_per_lang)
+
+
 def count_train_samples(train_langs: List[str], cfg: RunConfig) -> int:
-    return len(load_raw_ner_dataset(train_langs, "train", cfg))
+    return sum(effective_train_count(lang, cfg) for lang in train_langs)
+
+
+def cluster_langs_by_id(cluster_map: Dict[str, int]) -> Dict[int, List[str]]:
+    clusters: Dict[int, List[str]] = {}
+    for lang, cid in cluster_map.items():
+        clusters.setdefault(cid, []).append(lang)
+    return clusters
+
+
+def cluster_sample_counts(
+    cluster_map: Dict[str, int],
+    cfg: RunConfig,
+) -> Dict[int, Dict]:
+    """Per-cluster train budget metadata using effective per-language caps."""
+    out: Dict[int, Dict] = {}
+    for cid, langs in sorted(cluster_langs_by_id(cluster_map).items()):
+        sorted_langs = sorted(langs)
+        out[cid] = {
+            "langs": sorted_langs,
+            "n_samples": count_train_samples(sorted_langs, cfg),
+        }
+    return out
+
+
+def largest_cluster_n_ref(
+    cluster_maps: List[Dict[str, int]],
+    cfg: RunConfig,
+) -> Tuple[int, Dict[str, Dict[int, Dict]]]:
+    """N_ref = max train samples among clusters across the given partitions."""
+    per_map: Dict[str, Dict[int, Dict]] = {}
+    max_n = 0
+    for i, cluster_map in enumerate(cluster_maps):
+        counts = cluster_sample_counts(cluster_map, cfg)
+        key = "embedding" if i == 0 else "linguistic" if i == 1 else f"map_{i}"
+        per_map[key] = counts
+        if counts:
+            max_n = max(max_n, max(v["n_samples"] for v in counts.values()))
+    return max_n, per_map
 
 
 def sample_matched_random_pool(
@@ -256,6 +315,31 @@ def get_upsample_target_n(cfg: RunConfig) -> Optional[int]:
 
 def upsample_seed_for_condition(cfg: RunConfig, condition_name: str) -> int:
     return cfg.seed + UPSAMPLE_SEED_OFFSETS.get(condition_name, 9000)
+
+
+def downsample_raw_dataset(
+    raw_ds: Dataset,
+    target_n: int,
+    seed: int,
+) -> Tuple[Dataset, Dict]:
+    n_unique = len(raw_ds)
+    if n_unique <= target_n:
+        return raw_ds, {
+            "downsampled": False,
+            "n_unique_train_samples": n_unique,
+            "n_train_samples": n_unique,
+            "downsample_target_n": target_n,
+        }
+    rng = np.random.RandomState(seed)
+    indices = rng.choice(n_unique, size=target_n, replace=False).tolist()
+    return raw_ds.select(indices), {
+        "downsampled": True,
+        "n_unique_train_samples": n_unique,
+        "n_train_samples": target_n,
+        "downsample_target_n": target_n,
+        "downsample_seed": seed,
+        "downsample_without_replacement": True,
+    }
 
 
 def upsample_raw_dataset(
@@ -313,8 +397,22 @@ def apply_training_budget(
         "n_unique_train_samples": len(raw_ds),
         "n_train_samples": len(raw_ds),
         "upsampled": False,
+        "downsampled": False,
         "upsample_to": cfg.upsample_to,
+        "downsample_to": cfg.downsample_to,
+        "budget_n_ref": cfg.budget_n_ref,
     }
+    if (
+        cfg.budget_n_ref is not None
+        and condition_name in DOWNSAMPLE_CONDITIONS
+        and len(raw_ds) > cfg.budget_n_ref
+    ):
+        raw_ds, down_meta = downsample_raw_dataset(
+            raw_ds,
+            target_n=cfg.budget_n_ref,
+            seed=cfg.seed + DOWNSAMPLE_SEED_OFFSETS.get(condition_name, 4500),
+        )
+        meta.update(down_meta)
     target_n = get_upsample_target_n(cfg)
     if (
         target_n is not None
@@ -329,6 +427,11 @@ def apply_training_budget(
         meta.update(up_meta)
     schedule = compute_training_schedule(len(raw_ds), cfg.batch_size, cfg.max_epochs)
     meta.update(schedule)
+    suffix = ""
+    if meta.get("downsampled"):
+        suffix = " (downsampled)"
+    elif meta.get("upsampled"):
+        suffix = " (upsampled)"
     print(
         f"[{condition_name}] train_budget: "
         f"unique={meta['n_unique_train_samples']} "
@@ -336,7 +439,7 @@ def apply_training_budget(
         f"steps/epoch={schedule['steps_per_epoch']} "
         f"total_steps={schedule['total_steps']} "
         f"epochs={cfg.max_epochs} batch={cfg.batch_size}"
-        + (" (upsampled)" if meta.get("upsampled") else "")
+        f"{suffix}"
     )
     return raw_ds, meta
 
@@ -700,7 +803,7 @@ def run_matched_random_condition(
     device: torch.device,
     reference_condition: str = "embedding_clustering",
 ) -> Dict:
-    """Random N-sample control matched to embedding_clustering train budget."""
+    """Random N-sample control matched to the reference train budget."""
     pool = build_train_pool(cfg)
     subset, indices = sample_matched_random_pool(
         pool,
@@ -712,7 +815,8 @@ def run_matched_random_condition(
         json.dump(
             {
                 "reference_condition": reference_condition,
-                "matched_n_before_upsample": len(indices),
+                "matched_n": len(indices),
+                "budget_n_ref": cfg.budget_n_ref,
                 "pool_size": len(pool),
                 "sample_indices": indices,
                 "random_seed": cfg.seed + MATCHED_RANDOM_SEED_OFFSET,
@@ -730,7 +834,8 @@ def run_matched_random_condition(
         raw_train_ds=subset,
         extra_meta={
             "matched_to": reference_condition,
-            "matched_n_before_upsample": len(indices),
+            "matched_n": len(indices),
+            "budget_n_ref": cfg.budget_n_ref,
             "pool_size": len(pool),
         },
     )
@@ -740,8 +845,9 @@ def build_clustering_meta(
     ling_map: Dict[str, int],
     emb_meta: Dict,
     cfg: RunConfig,
+    budget_meta: Optional[Dict] = None,
 ) -> Dict:
-    return {
+    meta = {
         "linguistic": {
             "method": "head_parameter",
             "head_final": sorted(HEAD_FINAL),
@@ -767,8 +873,13 @@ def build_clustering_meta(
             "quick": cfg.quick,
             "upsample_to": cfg.upsample_to,
             "upsample_target_n": get_upsample_target_n(cfg),
+            "downsample_to": cfg.downsample_to,
+            "budget_n_ref": cfg.budget_n_ref,
         },
     }
+    if budget_meta:
+        meta["budget"] = budget_meta
+    return meta
 
 
 def aggregate_final_info(all_runs: Dict[str, Dict], n_seeds: int) -> Dict:
@@ -806,7 +917,23 @@ def run_experiment(cfg: RunConfig) -> Dict:
 
     ling_map = cluster_linguistic(LANGUAGES)
     emb_map, emb_meta = cluster_embedding(LANGUAGES, cfg, device)
-    clustering_meta = build_clustering_meta(ling_map, emb_meta, cfg)
+
+    budget_meta: Optional[Dict] = None
+    if cfg.downsample_to == "largest_cluster":
+        n_ref, cluster_sizes = largest_cluster_n_ref([emb_map, ling_map], cfg)
+        cfg.budget_n_ref = n_ref
+        budget_meta = {
+            "mode": "largest_cluster_downsample",
+            "n_ref": n_ref,
+            "cluster_sizes": cluster_sizes,
+            "downsample_conditions": sorted(DOWNSAMPLE_CONDITIONS),
+        }
+        print(
+            f"[budget] largest_cluster N_ref={n_ref} "
+            f"(downsample {sorted(DOWNSAMPLE_CONDITIONS)})"
+        )
+
+    clustering_meta = build_clustering_meta(ling_map, emb_meta, cfg, budget_meta)
 
     with open(os.path.join(cfg.out_dir, "cluster_linguistic.json"), "w") as f:
         json.dump(ling_map, f, indent=2)
@@ -831,6 +958,7 @@ def run_experiment(cfg: RunConfig) -> Dict:
         cfg,
         source="linguistic",
     )
+    matched_n = cfg.budget_n_ref if cfg.budget_n_ref is not None else emb_n_samples
 
     results = {
         "linguistic_clustering": run_condition(
@@ -866,7 +994,7 @@ def run_experiment(cfg: RunConfig) -> Dict:
             device=device,
         ),
         "matched_random": run_matched_random_condition(
-            n_samples=emb_n_samples,
+            n_samples=matched_n,
             eval_langs=eval_langs,
             cfg=cfg,
             device=device,
@@ -881,9 +1009,15 @@ def run_experiment(cfg: RunConfig) -> Dict:
             "seed": cfg.seed,
             "max_epochs": cfg.max_epochs,
             "batch_size": cfg.batch_size,
+            "max_train_per_lang": cfg.max_train_per_lang,
             "quick": cfg.quick,
             "upsample_to": cfg.upsample_to,
             "upsample_target_n": get_upsample_target_n(cfg),
+            "downsample_to": cfg.downsample_to,
+            "budget_n_ref": cfg.budget_n_ref,
+            "embedding_cluster_n_samples": emb_n_samples,
+            "linguistic_cluster_n_samples": count_train_samples(ling_train_langs, cfg),
+            "matched_random_n_samples": matched_n,
         },
     }
     return results
@@ -902,7 +1036,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--batch_size", type=int, default=16)
     p.add_argument("--learning_rate", type=float, default=5e-5)
     p.add_argument("--max_length", type=int, default=128)
-    p.add_argument("--max_train_per_lang", type=int, default=500)
+    p.add_argument("--max_train_per_lang", type=int, default=0,
+                   help="Per-language train cap (0 = full WikiAnn, no cap)")
     p.add_argument("--max_embed_samples_per_lang", type=int, default=200)
     p.add_argument(
         "--num_seeds",
@@ -914,8 +1049,15 @@ def parse_args() -> argparse.Namespace:
         "--upsample_to",
         type=str,
         default=None,
-        help='Bootstrap-upsampling reference for train budget. Use "all_mixed" to '
-        "match the 5-language pool size (excludes per_language and all_mixed).",
+        help='Legacy bootstrap-upsampling reference (e.g. "all_mixed"). '
+        "Mutually exclusive with --downsample_to largest_cluster.",
+    )
+    p.add_argument(
+        "--downsample_to",
+        type=str,
+        default="largest_cluster",
+        help='Downsample all_mixed/matched_random budget reference. '
+        '"largest_cluster" (default) or "none".',
     )
     p.add_argument("--quick", action="store_true", help="Smoke test (1 epoch, tiny data)")
     return p.parse_args()
@@ -945,6 +1087,7 @@ if __name__ == "__main__":
             n_clusters=cfg.n_clusters,
             quick=cfg.quick,
             upsample_to=cfg.upsample_to,
+            downsample_to=cfg.downsample_to,
         )
         print(
             f"=== Running seed {seed} ({i + 1}/{num_seeds}) -> {run_dir} "

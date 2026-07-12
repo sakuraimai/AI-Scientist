@@ -1,40 +1,32 @@
 [
   {
+    "Name": "largest_cluster_downsample_budget",
+    "Title": "Largest-Cluster Budget: cap=0 Train with Fair Downsample Control",
+    "Experiment": "Default protocol is now implemented: cap=0 full WikiAnn; N_ref = largest cluster train size after clustering; downsample all_mixed and matched_random to N_ref (no upsampling duplicates). Verify clustering beats matched_random on low_resource_macro_f1 and/or average_f1 under this budget. Legacy cap500: --max_train_per_lang 500 --downsample_to none.",
+    "Interestingness": 9,
+    "Feasibility": 8,
+    "Novelty": 7
+  },
+  {
     "Name": "head_final_cohesion",
-    "Title": "Constrained Clustering: Keep ja-ko-mn Together for Mongolian Transfer",
-    "Experiment": "Modify cluster_embedding() so ja, ko, mn must share one cluster (hard or soft constraint) before/during agglomerative clustering. Cap500 floor: embedding groups {ja,ko,mn} but still loses to matched_random (0.228). Add cohesion constraint. Success: embedding_clustering mongolian_f1 > 0.228.",
+    "Title": "Constrained Clustering: Keep ja-ko-mn Together for East-Asian Transfer",
+    "Experiment": "Modify cluster_embedding() so ja, ko, mn must share one cluster (hard or soft constraint) before/during agglomerative clustering. Cap500 floor: embedding groups {ja,ko,mn} but still loses to matched_random on pool transfer. Add cohesion constraint. Success: embedding_clustering beats matched_random on low_resource_macro_f1; mn F1 is secondary evidence.",
     "Interestingness": 9,
     "Feasibility": 8,
     "Novelty": 7
   },
   {
     "Name": "script_aware_mn_ru_penalty",
-    "Title": "Script-Aware Typology Distance: Penalize Mongolian-Russian Cyrillic Confusion",
-    "Experiment": "Extend _hybrid_lang_distance_matrix() with an extra penalty when pairing mn with ru/en (script-similarity trap) unless typology strongly agrees. Goal: prevent mn from training only with {ko,mn} or {mn,ru,en} when ja typology neighbors are better. Tune penalty weight. Compare embedding vs matched_random mn F1.",
+    "Title": "Script-Aware Typology Distance: Penalize Cyrillic Script Confusion",
+    "Experiment": "Extend _hybrid_lang_distance_matrix() with an extra penalty when pairing typologically distant languages that share script (e.g. mn-ru). Goal: improve cluster purity and pool-wide transfer, not mn-only tuning. Tune penalty weight. Compare embedding vs matched_random on low_resource_macro_f1 and per-language F1.",
     "Interestingness": 9,
     "Feasibility": 8,
     "Novelty": 8
   },
   {
-    "Name": "min_budget_linguistic_fallback",
-    "Title": "Minimum-Train-Budget Fallback to Linguistic Prior",
-    "Experiment": "Implement post_cluster_train_langs() (EVOLVE-BLOCK): if count_train_samples(train_langs) < threshold OR unique mn exposure too low, fallback train langs to HEAD_FINAL set {ja,ko,mn}. Prevents pathological small clusters like run_1 N=600. Evaluate on full WikiAnn default settings.",
-    "Interestingness": 8,
-    "Feasibility": 9,
-    "Novelty": 6
-  },
-  {
-    "Name": "mn_oversample_transfer",
-    "Title": "Mongolian Oversampling Within Selected Transfer Languages",
-    "Experiment": "Implement augment_train_raw(): after language selection, oversample mn sentences (e.g. 3x) within the training pool before NER fine-tune. WikiAnn mn train is only ~100 unique sentences; increase mn exposure without changing cluster logic. Keep five conditions; only changes embedding/linguistic train data composition.",
-    "Interestingness": 8,
-    "Feasibility": 9,
-    "Novelty": 7
-  },
-  {
     "Name": "typology_weighted_mixture",
     "Title": "Soft Typology-Weighted Training Mixture Instead of Hard Cluster Cut",
-    "Experiment": "Replace hard langs_in_cluster() selection with typology-based language weights (HEAD_FINAL languages up-weighted for mn target). Sample or weight training sentences proportional to typology similarity to mn. Target: beat matched_random 0.228.",
+    "Experiment": "Replace hard langs_in_cluster() selection with typology-based language weights across the pool. Sample or weight training sentences proportional to typology similarity to each eval language (or cluster centroid). Still report as embedding_clustering regime. Target: beat matched_random on low_resource_macro_f1 and pool macro F1.",
     "Interestingness": 9,
     "Feasibility": 6,
     "Novelty": 9
@@ -42,9 +34,17 @@
   {
     "Name": "k2_silhouette_head_final",
     "Title": "Silhouette k Selection with k>=2 and HEAD_FINAL Merger",
-    "Experiment": "Change _select_k_by_silhouette() to never split {ja,ko,mn} across clusters: either fix k=2 with typology prior merge, or search k in {2,3} only among partitions where ja,ko,mn are co-located. Addresses run_2 failure mode without abandoning data-driven k.",
+    "Experiment": "Change _select_k_by_silhouette() to search k in {2,3,4} with optional typology-prior merge so related East-Asian languages co-locate. Addresses pathological splits without abandoning data-driven k. Evaluate pool-wide transfer vs matched_random.",
     "Interestingness": 8,
     "Feasibility": 8,
+    "Novelty": 7
+  },
+  {
+    "Name": "low_resource_reweight",
+    "Title": "Low-Resource Stratum Reweighting in Transfer Mixtures",
+    "Experiment": "Implement augment_train_raw(): up-weight sentences from low_resource_macro_f1 stratum languages within selected transfer languages (not mn-only). Improves low-resource transfer without changing cluster assignment logic. Success: low_resource_macro_f1 > matched_random.",
+    "Interestingness": 8,
+    "Feasibility": 9,
     "Novelty": 7
   }
 ]
