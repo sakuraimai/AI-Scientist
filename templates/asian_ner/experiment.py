@@ -902,7 +902,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--batch_size", type=int, default=16)
     p.add_argument("--learning_rate", type=float, default=5e-5)
     p.add_argument("--max_length", type=int, default=128)
-    p.add_argument("--max_train_per_lang", type=int, default=0)
+    p.add_argument("--max_train_per_lang", type=int, default=500)
     p.add_argument("--max_embed_samples_per_lang", type=int, default=200)
     p.add_argument(
         "--num_seeds",

@@ -1,0 +1,46 @@
+{
+  "current_floor": {
+    "source": "pod run_asian_cap500",
+    "protocol": {
+      "pool": "asian_east_sea + ru (29 languages)",
+      "max_train_per_lang": 500,
+      "max_epochs": 2,
+      "batch_size": 32,
+      "num_seeds": 1,
+      "seed": 1
+    },
+    "mongolian_f1": {
+      "linguistic_clustering": 0.1456,
+      "embedding_clustering": 0.1271,
+      "per_language": 0.0,
+      "all_mixed": 0.7137,
+      "matched_random": 0.2283
+    },
+    "low_resource_macro_f1": {
+      "linguistic_clustering": 0.1393,
+      "embedding_clustering": 0.1631,
+      "per_language": 0.0,
+      "all_mixed": 0.664,
+      "matched_random": 0.2665
+    },
+    "clusters": {
+      "embedding": {"mn": 1, "ru": 0, "ja": 1, "ko": 1},
+      "linguistic": {"mn": 0, "ru": 1, "ja": 0, "ko": 0}
+    },
+    "ai_success_criterion": "embedding_clustering mongolian_f1 > 0.2283 (beat matched_random)"
+  },
+  "legacy_5lang": {
+    "note": "Pre-pool human runs on ja,ko,mn,ru,en — reference only, not launch floor",
+    "run_1_cap500_hybrid": {
+      "embedding_clustering_mn_f1": 0.092,
+      "matched_random_mn_f1": 0.058
+    },
+    "run_2_full_hybrid": {
+      "embedding_clustering_mn_f1": 0.664,
+      "matched_random_mn_f1": 0.75,
+      "linguistic_clustering_mn_f1": 0.652,
+      "all_mixed_mn_f1": 0.772,
+      "cluster_embedding": {"ko": 0, "mn": 0, "ja": 1, "ru": 2, "en": 2}
+    }
+  }
+}

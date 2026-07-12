@@ -2,7 +2,7 @@
   {
     "Name": "head_final_cohesion",
     "Title": "Constrained Clustering: Keep ja-ko-mn Together for Mongolian Transfer",
-    "Experiment": "Modify cluster_embedding() so ja, ko, mn must share one cluster (hard or soft constraint) before/during agglomerative clustering. Current hybrid silhouette k=3 splits ja away from {ko,mn}, hurting transfer. Keep lang-ID embeddings + typology penalty but add cohesion constraint. Success: embedding_clustering mongolian_f1 > 0.750 (beat matched_random on run_2).",
+    "Experiment": "Modify cluster_embedding() so ja, ko, mn must share one cluster (hard or soft constraint) before/during agglomerative clustering. Cap500 floor: embedding groups {ja,ko,mn} but still loses to matched_random (0.228). Add cohesion constraint. Success: embedding_clustering mongolian_f1 > 0.228.",
     "Interestingness": 9,
     "Feasibility": 8,
     "Novelty": 7
@@ -34,7 +34,7 @@
   {
     "Name": "typology_weighted_mixture",
     "Title": "Soft Typology-Weighted Training Mixture Instead of Hard Cluster Cut",
-    "Experiment": "Replace hard langs_in_cluster() selection with typology-based language weights (HEAD_FINAL languages up-weighted for mn target). Sample or weight training sentences proportional to typology similarity to mn. Still report embedding_clustering condition using this soft mixture as the 'embedding' regime. Target: beat matched_random 0.750.",
+    "Experiment": "Replace hard langs_in_cluster() selection with typology-based language weights (HEAD_FINAL languages up-weighted for mn target). Sample or weight training sentences proportional to typology similarity to mn. Target: beat matched_random 0.228.",
     "Interestingness": 9,
     "Feasibility": 6,
     "Novelty": 9

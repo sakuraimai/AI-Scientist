@@ -19,13 +19,13 @@ CONDITION_LABELS = {
     "all_mixed": "All Mixed",
     "matched_random": "Matched Random",
 }
-LANGUAGES = ["ja", "ko", "mn", "ru", "en"]
 PRIMARY_METRIC = "mongolian_f1"
+LOW_RESOURCE_METRIC = "low_resource_macro_f1"
 
 # CREATE LEGEND -- ADD RUNS HERE THAT WILL BE PLOTTED
-# run_0 = human run_2 hybrid baseline; run_1+ = AI Scientist experiments
+# run_0 = human cap500 floor (29-lang pool); run_1+ = AI Scientist experiments
 labels = {
-    "run_0": "Human hybrid (run_2)",
+    "run_0": "Human cap500 floor",
 }
 
 

@@ -1,0 +1,62 @@
+{
+  "linguistic_clustering": {
+    "means": {
+      "mongolian_f1": 0.1456,
+      "mn": 0.1456,
+      "low_resource_macro_f1": 0.1393
+    },
+    "stderrs": {
+      "mongolian_f1": 0.0,
+      "mn": 0.0,
+      "low_resource_macro_f1": 0.0
+    }
+  },
+  "embedding_clustering": {
+    "means": {
+      "mongolian_f1": 0.1271,
+      "mn": 0.1271,
+      "low_resource_macro_f1": 0.1631
+    },
+    "stderrs": {
+      "mongolian_f1": 0.0,
+      "mn": 0.0,
+      "low_resource_macro_f1": 0.0
+    }
+  },
+  "per_language": {
+    "means": {
+      "mongolian_f1": 0.0,
+      "mn": 0.0,
+      "low_resource_macro_f1": 0.0
+    },
+    "stderrs": {
+      "mongolian_f1": 0.0,
+      "mn": 0.0,
+      "low_resource_macro_f1": 0.0
+    }
+  },
+  "all_mixed": {
+    "means": {
+      "mongolian_f1": 0.7137,
+      "mn": 0.7137,
+      "low_resource_macro_f1": 0.664
+    },
+    "stderrs": {
+      "mongolian_f1": 0.0,
+      "mn": 0.0,
+      "low_resource_macro_f1": 0.0
+    }
+  },
+  "matched_random": {
+    "means": {
+      "mongolian_f1": 0.2283,
+      "mn": 0.2283,
+      "low_resource_macro_f1": 0.2665
+    },
+    "stderrs": {
+      "mongolian_f1": 0.0,
+      "mn": 0.0,
+      "low_resource_macro_f1": 0.0
+    }
+  }
+}
