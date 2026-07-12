@@ -125,6 +125,7 @@ class RunConfig:
     budget_n_ref_embedding: Optional[int] = None
     budget_n_ref_linguistic: Optional[int] = None
     downsample_conditions: Optional[set] = None
+    skip_conditions: Optional[set] = None
 
 
 def build_config(args: argparse.Namespace) -> RunConfig:
@@ -147,6 +148,7 @@ def build_config(args: argparse.Namespace) -> RunConfig:
         quick=quick,
         upsample_to=args.upsample_to,
         downsample_to=downsample_to,
+        skip_conditions=getattr(args, "skip_conditions_set", None),
     )
 
 
@@ -1034,56 +1036,68 @@ def run_experiment(cfg: RunConfig) -> Dict:
         ling_train_langs, cfg
     )
 
-    results = {
-        "linguistic_clustering": run_condition(
+    def _skipped(name: str) -> bool:
+        return bool(cfg.skip_conditions and name in cfg.skip_conditions)
+
+    results: Dict = {}
+    if not _skipped("linguistic_clustering"):
+        results["linguistic_clustering"] = run_condition(
             "linguistic_clustering",
             train_langs=ling_train_langs,
             eval_langs=eval_langs,
             cluster_map=ling_map,
             cfg=cfg,
             device=device,
-        ),
-        "embedding_clustering": run_condition(
+        )
+    if not _skipped("embedding_clustering"):
+        results["embedding_clustering"] = run_condition(
             "embedding_clustering",
             train_langs=emb_train_langs,
             eval_langs=eval_langs,
             cluster_map=emb_map,
             cfg=cfg,
             device=device,
-        ),
-        "per_language": run_condition(
+        )
+    if not _skipped("per_language"):
+        results["per_language"] = run_condition(
             "per_language",
             train_langs=[TARGET_LANG],
             eval_langs=[TARGET_LANG],
             cluster_map=None,
             cfg=cfg,
             device=device,
-        ),
-        "all_mixed": run_condition(
+        )
+    if not _skipped("all_mixed"):
+        results["all_mixed"] = run_condition(
             "all_mixed",
             train_langs=LANGUAGES,
             eval_langs=eval_langs,
             cluster_map=None,
             cfg=cfg,
             device=device,
-        ),
-        "matched_random_embedding": run_matched_random_condition(
+        )
+    if not _skipped("matched_random_embedding"):
+        results["matched_random_embedding"] = run_matched_random_condition(
             "matched_random_embedding",
             n_samples=matched_emb_n,
             eval_langs=eval_langs,
             cfg=cfg,
             device=device,
             reference_condition="embedding_clustering",
-        ),
-        "matched_random_linguistic": run_matched_random_condition(
+        )
+    if not _skipped("matched_random_linguistic"):
+        results["matched_random_linguistic"] = run_matched_random_condition(
             "matched_random_linguistic",
             n_samples=matched_ling_n,
             eval_langs=eval_langs,
             cfg=cfg,
             device=device,
             reference_condition="linguistic_clustering",
-        ),
-        "metadata": {
+        )
+    if cfg.skip_conditions:
+        print(f"[skip] conditions not run: {sorted(cfg.skip_conditions)}")
+
+    results["metadata"] = {
             "languages": LANGUAGES,
             "language_pool": _POOL_META,
             "target_lang": TARGET_LANG,
@@ -1104,7 +1118,7 @@ def run_experiment(cfg: RunConfig) -> Dict:
             "matched_random_embedding_n_samples": matched_emb_n,
             "matched_random_linguistic_n_samples": matched_ling_n,
             "all_mixed_n_samples": budget_meta.get("all_mixed_n_samples"),
-        },
+            "skipped_conditions": sorted(cfg.skip_conditions or []),
     }
     return results
 
@@ -1146,8 +1160,20 @@ def parse_args() -> argparse.Namespace:
         "cluster n, all_mixed full pool. "
         '"largest_cluster": legacy downsample all/matched to max cluster. "none": no override.',
     )
+    p.add_argument(
+        "--skip_conditions",
+        type=str,
+        default="",
+        help="Comma-separated conditions to skip, e.g. 'all_mixed' or 'all_mixed,per_language'",
+    )
     p.add_argument("--quick", action="store_true", help="Smoke test (1 epoch, tiny data)")
-    return p.parse_args()
+    args = p.parse_args()
+    skip_set = {x.strip() for x in args.skip_conditions.split(",") if x.strip()}
+    unknown = skip_set - set(CONDITIONS)
+    if unknown:
+        raise ValueError(f"Unknown skip_conditions: {sorted(unknown)}; valid: {CONDITIONS}")
+    args.skip_conditions_set = skip_set or None
+    return args
 
 
 if __name__ == "__main__":
@@ -1175,6 +1201,7 @@ if __name__ == "__main__":
             quick=cfg.quick,
             upsample_to=cfg.upsample_to,
             downsample_to=cfg.downsample_to,
+            skip_conditions=cfg.skip_conditions,
         )
         print(
             f"=== Running seed {seed} ({i + 1}/{num_seeds}) -> {run_dir} "
