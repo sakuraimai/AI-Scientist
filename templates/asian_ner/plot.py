@@ -10,19 +10,23 @@ CONDITIONS = [
     "embedding_clustering",
     "per_language",
     "all_mixed",
+    "matched_random",
 ]
 CONDITION_LABELS = {
     "linguistic_clustering": "Linguistic",
     "embedding_clustering": "Embedding",
     "per_language": "Per-Language",
     "all_mixed": "All Mixed",
+    "matched_random": "Matched Random",
 }
 LANGUAGES = ["ja", "ko", "mn", "ru", "en"]
 PRIMARY_METRIC = "mongolian_f1"
 
 # CREATE LEGEND -- ADD RUNS HERE THAT WILL BE PLOTTED
 labels = {
-    "run_0": "Baseline",
+    "run_0": "Baseline (pure emb)",
+    "run_1": "Hybrid PoC",
+    "run_2": "Hybrid full",
 }
 
 

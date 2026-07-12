@@ -1,11 +1,12 @@
 """
 asian_ner — AI Scientist v1 template (minimal PoC)
 
-Compares four multilingual NER training regimes on WikiAnn:
+Compares five multilingual NER training regimes on WikiAnn:
   1. linguistic_clustering  — Head-parameter grouping (ACL 2023 lineage)
   2. embedding_clustering   — XLM-R [CLS] embeddings + agglomerative clustering
   3. per_language           — monolingual baseline (Mongolian only for mn metric)
   4. all_mixed              — train on all languages jointly
+  5. matched_random         — same train budget N as embedding, random 5-lang sample
 
 Primary metric: Mongolian (mn) entity-level F1 under 100-sample WikiAnn regime.
 
@@ -62,6 +63,16 @@ LABEL2ID = {label: i for i, label in enumerate(LABEL_LIST)}
 ID2LABEL = {i: label for label, i in LABEL2ID.items()}
 
 NER_TAGS = ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]
+
+CONDITIONS = [
+    "linguistic_clustering",
+    "embedding_clustering",
+    "per_language",
+    "all_mixed",
+    "matched_random",
+]
+
+MATCHED_RANDOM_SEED_OFFSET = 4242
 
 
 @dataclass
@@ -171,18 +182,50 @@ def prepare_ner_dataset(
     tokenizer,
     cfg: RunConfig,
 ) -> Dataset:
+    raw = load_raw_ner_dataset(langs, split, cfg)
+    return tokenize_ner_dataset(raw, tokenizer, cfg.max_length)
+
+
+def load_raw_ner_dataset(
+    langs: List[str],
+    split: str,
+    cfg: RunConfig,
+) -> Dataset:
     parts = []
     for lang in langs:
         ds = load_wikiann_split(lang, split)
         if split == "train":
             ds = cap_dataset(ds, cfg.max_train_per_lang)
         parts.append(ds)
-    merged = parts[0] if len(parts) == 1 else concatenate_datasets(parts)
-    return merged.map(
-        lambda x: tokenize_and_align(x, tokenizer, cfg.max_length),
+    return parts[0] if len(parts) == 1 else concatenate_datasets(parts)
+
+
+def tokenize_ner_dataset(raw_ds: Dataset, tokenizer, max_length: int) -> Dataset:
+    return raw_ds.map(
+        lambda x: tokenize_and_align(x, tokenizer, max_length),
         batched=True,
-        remove_columns=merged.column_names,
+        remove_columns=raw_ds.column_names,
     )
+
+
+def build_train_pool(cfg: RunConfig) -> Dataset:
+    """All capped training sentences from the fixed language pool."""
+    return load_raw_ner_dataset(LANGUAGES, "train", cfg)
+
+
+def count_train_samples(train_langs: List[str], cfg: RunConfig) -> int:
+    return len(load_raw_ner_dataset(train_langs, "train", cfg))
+
+
+def sample_matched_random_pool(
+    pool: Dataset,
+    n_samples: int,
+    seed: int,
+) -> Tuple[Dataset, List[int]]:
+    n_samples = min(n_samples, len(pool))
+    rng = np.random.RandomState(seed)
+    indices = rng.choice(len(pool), size=n_samples, replace=False).tolist()
+    return pool.select(indices), indices
 
 
 # ---------------------------------------------------------------------------
@@ -369,9 +412,11 @@ def train_and_evaluate_ner(
     cfg: RunConfig,
     device: torch.device,
     save_dir: Optional[str] = None,
+    train_ds: Optional[Dataset] = None,
 ) -> Dict[str, float]:
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    train_ds = prepare_ner_dataset(train_langs, "train", tokenizer, cfg)
+    if train_ds is None:
+        train_ds = prepare_ner_dataset(train_langs, "train", tokenizer, cfg)
 
     model = AutoModelForTokenClassification.from_pretrained(
         MODEL_NAME,
@@ -390,6 +435,8 @@ def train_and_evaluate_ner(
         report_to=[],
         seed=cfg.seed,
         use_cpu=device.type == "cpu",
+        dataloader_num_workers=4 if device.type == "cuda" else 0,
+        dataloader_pin_memory=device.type == "cuda",
     )
     collator = DataCollatorForTokenClassification(tokenizer)
     trainer_kwargs = dict(
@@ -468,6 +515,8 @@ def run_condition(
     cluster_map: Optional[Dict[str, int]],
     cfg: RunConfig,
     device: torch.device,
+    train_ds: Optional[Dataset] = None,
+    extra_meta: Optional[Dict] = None,
 ) -> Dict:
     subdir = os.path.join(cfg.out_dir, name)
     os.makedirs(subdir, exist_ok=True)
@@ -477,12 +526,62 @@ def run_condition(
         cfg=cfg,
         device=device,
         save_dir=subdir,
+        train_ds=train_ds,
     )
-    return {
+    result = {
         "means": scores,
         "train_langs": train_langs,
+        "n_train_samples": len(train_ds) if train_ds is not None else count_train_samples(train_langs, cfg),
         "cluster_map": cluster_map or {},
     }
+    if extra_meta:
+        result.update(extra_meta)
+    return result
+
+
+def run_matched_random_condition(
+    n_samples: int,
+    eval_langs: List[str],
+    cfg: RunConfig,
+    device: torch.device,
+    reference_condition: str = "embedding_clustering",
+) -> Dict:
+    """Random N-sample control matched to embedding_clustering train budget."""
+    pool = build_train_pool(cfg)
+    subset, indices = sample_matched_random_pool(
+        pool,
+        n_samples=n_samples,
+        seed=cfg.seed + MATCHED_RANDOM_SEED_OFFSET,
+    )
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    train_ds = tokenize_ner_dataset(subset, tokenizer, cfg.max_length)
+    meta_path = os.path.join(cfg.out_dir, "matched_random_indices.json")
+    with open(meta_path, "w") as f:
+        json.dump(
+            {
+                "reference_condition": reference_condition,
+                "n_train_samples": len(indices),
+                "pool_size": len(pool),
+                "sample_indices": indices,
+                "random_seed": cfg.seed + MATCHED_RANDOM_SEED_OFFSET,
+            },
+            f,
+            indent=2,
+        )
+    return run_condition(
+        "matched_random",
+        train_langs=LANGUAGES,
+        eval_langs=eval_langs,
+        cluster_map=None,
+        cfg=cfg,
+        device=device,
+        train_ds=train_ds,
+        extra_meta={
+            "matched_to": reference_condition,
+            "n_train_samples": len(indices),
+            "pool_size": len(pool),
+        },
+    )
 
 
 def build_clustering_meta(
@@ -515,23 +614,23 @@ def build_clustering_meta(
 
 def aggregate_final_info(all_runs: Dict[str, Dict], n_seeds: int) -> Dict:
     """Aggregate per-seed results into AI Scientist-compatible final_info.json."""
-    conditions = [
-        "linguistic_clustering",
-        "embedding_clustering",
-        "per_language",
-        "all_mixed",
-    ]
+    conditions = CONDITIONS
     final_info: Dict = {}
     for cond in conditions:
         metric_keys = set()
         for i in range(n_seeds):
+            if cond not in all_runs[f"seed_{i}"]:
+                continue
             metric_keys.update(all_runs[f"seed_{i}"][cond]["means"].keys())
+        if not metric_keys:
+            continue
         means = {}
         stderrs = {}
         for key in sorted(metric_keys):
             vals = [
                 all_runs[f"seed_{i}"][cond]["means"][key]
                 for i in range(n_seeds)
+                if cond in all_runs[f"seed_{i}"]
             ]
             means[key] = float(np.mean(vals))
             stderrs[key] = (
@@ -558,6 +657,9 @@ def run_experiment(cfg: RunConfig) -> Dict:
         json.dump(clustering_meta, f, indent=2)
 
     eval_langs = LANGUAGES
+    emb_train_langs = langs_in_cluster(TARGET_LANG, emb_map)
+    emb_n_samples = count_train_samples(emb_train_langs, cfg)
+
     results = {
         "linguistic_clustering": run_condition(
             "linguistic_clustering",
@@ -569,7 +671,7 @@ def run_experiment(cfg: RunConfig) -> Dict:
         ),
         "embedding_clustering": run_condition(
             "embedding_clustering",
-            train_langs=langs_in_cluster(TARGET_LANG, emb_map),
+            train_langs=emb_train_langs,
             eval_langs=eval_langs,
             cluster_map=emb_map,
             cfg=cfg,
@@ -588,6 +690,12 @@ def run_experiment(cfg: RunConfig) -> Dict:
             train_langs=LANGUAGES,
             eval_langs=eval_langs,
             cluster_map=None,
+            cfg=cfg,
+            device=device,
+        ),
+        "matched_random": run_matched_random_condition(
+            n_samples=emb_n_samples,
+            eval_langs=eval_langs,
             cfg=cfg,
             device=device,
         ),
@@ -619,6 +727,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--max_length", type=int, default=128)
     p.add_argument("--max_train_per_lang", type=int, default=500)
     p.add_argument("--max_embed_samples_per_lang", type=int, default=200)
+    p.add_argument(
+        "--num_seeds",
+        type=int,
+        default=None,
+        help="Number of seeds to run (default: 1 if --quick else 3)",
+    )
     p.add_argument("--quick", action="store_true", help="Smoke test (1 epoch, tiny data)")
     return p.parse_args()
 
@@ -627,7 +741,8 @@ if __name__ == "__main__":
     args = parse_args()
     cfg = build_config(args)
 
-    seeds = [cfg.seed] if cfg.quick else [cfg.seed, cfg.seed + 1, cfg.seed + 2]
+    num_seeds = args.num_seeds if args.num_seeds is not None else (1 if cfg.quick else 3)
+    seeds = [cfg.seed + i for i in range(num_seeds)]
     all_runs: Dict[str, Dict] = {}
 
     for i, seed in enumerate(seeds):
@@ -646,7 +761,10 @@ if __name__ == "__main__":
             n_clusters=cfg.n_clusters,
             quick=cfg.quick,
         )
-        print(f"=== Running seed {seed} -> {run_dir} ===")
+        print(
+            f"=== Running seed {seed} ({i + 1}/{num_seeds}) -> {run_dir} "
+            f"[device={get_device()}] ==="
+        )
         result = run_experiment(run_cfg)
         with open(os.path.join(run_dir, "final_info.json"), "w") as f:
             json.dump(result, f, indent=2)
