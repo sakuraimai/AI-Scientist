@@ -26,7 +26,7 @@ LOW_RESOURCE_METRIC = "low_resource_macro_f1"
 
 # CREATE LEGEND -- ADD RUNS HERE THAT WILL BE PLOTTED
 labels = {
-    "run_0": "Human floor",
+    "run_0": "Human cap0 target-cluster floor",
 }
 
 

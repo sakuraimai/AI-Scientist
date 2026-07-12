@@ -1,0 +1,25 @@
+{
+  "budget": {
+    "mode": "target_cluster_matched_controls",
+    "target_lang": "mn",
+    "embedding_train_langs": ["ja", "ko", "mn"],
+    "linguistic_train_langs": ["ja", "ko", "mn"],
+    "embedding_cluster_n_samples": 40100,
+    "linguistic_cluster_n_samples": 40100,
+    "all_mixed_n_samples": 191900,
+    "matched_random_embedding_n": 40100,
+    "matched_random_linguistic_n": 40100,
+    "downsample_conditions": [],
+    "skipped_conditions": ["all_mixed"]
+  },
+  "config": {
+    "source_run": "pod run_asian_cap0_target_cluster",
+    "max_train_per_lang": 0,
+    "downsample_to": "target_cluster",
+    "skip_conditions": ["all_mixed"],
+    "max_epochs": 2,
+    "batch_size": 32,
+    "seed": 1,
+    "num_seeds": 1
+  }
+}

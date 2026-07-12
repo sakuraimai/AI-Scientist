@@ -1,62 +1,184 @@
 {
   "linguistic_clustering": {
     "means": {
-      "mongolian_f1": 0.1456,
-      "mn": 0.1456,
-      "low_resource_macro_f1": 0.1393
+      "ace": 0.3964757709251101,
+      "average_f1": 0.4670319967942003,
+      "bo": 0.23232323232323232,
+      "cdo": 0.24175824175824176,
+      "ceb": 0.3898305084745763,
+      "gan": 0.5741626794258373,
+      "hak": 0.43000000000000005,
+      "id": 0.43629407850964735,
+      "ilo": 0.45581395348837206,
+      "ja": 0.6816476618504624,
+      "jv": 0.5166666666666666,
+      "km": 0.4827586206896552,
+      "ko": 0.8424000273196052,
+      "low_resource_macro_f1": 0.43867738156744424,
+      "mg": 0.43410852713178294,
+      "mi": 0.1981981981981982,
+      "min": 0.37130801687763715,
+      "mn": 0.6923076923076923,
+      "mongolian_f1": 0.6923076923076923,
+      "ms": 0.47258485639686687,
+      "my": 0.6566037735849057,
+      "ru": 0.5003680800942285,
+      "su": 0.3644067796610169,
+      "th": 0.11152946545724228,
+      "tl": 0.47450110864745015,
+      "vi": 0.4926326129666012,
+      "war": 0.4549763033175355,
+      "wuu": 0.6467661691542289,
+      "zh": 0.5882352941176471,
+      "zh-classical": 0.5454545454545454,
+      "zh-min-nan": 0.2509505703422053,
+      "zh-yue": 0.6088644718906192
     },
     "stderrs": {
-      "mongolian_f1": 0.0,
+      "ace": 0.0,
+      "average_f1": 0.0,
+      "bo": 0.0,
+      "cdo": 0.0,
+      "ceb": 0.0,
+      "gan": 0.0,
+      "hak": 0.0,
+      "id": 0.0,
+      "ilo": 0.0,
+      "ja": 0.0,
+      "jv": 0.0,
+      "km": 0.0,
+      "ko": 0.0,
+      "low_resource_macro_f1": 0.0,
+      "mg": 0.0,
+      "mi": 0.0,
+      "min": 0.0,
       "mn": 0.0,
-      "low_resource_macro_f1": 0.0
+      "mongolian_f1": 0.0,
+      "ms": 0.0,
+      "my": 0.0,
+      "ru": 0.0,
+      "su": 0.0,
+      "th": 0.0,
+      "tl": 0.0,
+      "vi": 0.0,
+      "war": 0.0,
+      "wuu": 0.0,
+      "zh": 0.0,
+      "zh-classical": 0.0,
+      "zh-min-nan": 0.0,
+      "zh-yue": 0.0
     }
   },
   "embedding_clustering": {
     "means": {
-      "mongolian_f1": 0.1271,
-      "mn": 0.1271,
-      "low_resource_macro_f1": 0.1631
+      "ace": 0.3539823008849557,
+      "average_f1": 0.46930873219596686,
+      "bo": 0.2914572864321608,
+      "cdo": 0.20338983050847462,
+      "ceb": 0.3706896551724138,
+      "gan": 0.5377358490566038,
+      "hak": 0.39603960396039606,
+      "id": 0.44207666511015836,
+      "ilo": 0.48847926267281105,
+      "ja": 0.6832330244064542,
+      "jv": 0.5365853658536586,
+      "km": 0.51,
+      "ko": 0.8437029946670312,
+      "low_resource_macro_f1": 0.4401464339204506,
+      "mg": 0.42537313432835816,
+      "mi": 0.24299065420560745,
+      "min": 0.43333333333333335,
+      "mn": 0.6896551724137931,
+      "mongolian_f1": 0.6896551724137931,
+      "ms": 0.459447983014862,
+      "my": 0.6459143968871595,
+      "ru": 0.5153127674617646,
+      "su": 0.35918367346938773,
+      "th": 0.12452840734426962,
+      "tl": 0.489047831917747,
+      "vi": 0.48223673729488614,
+      "war": 0.4537037037037037,
+      "wuu": 0.6502463054187193,
+      "zh": 0.600769320433617,
+      "zh-classical": 0.5929203539823009,
+      "zh-min-nan": 0.1811023622047244,
+      "zh-yue": 0.6068152575436849
     },
     "stderrs": {
-      "mongolian_f1": 0.0,
+      "ace": 0.0,
+      "average_f1": 0.0,
+      "bo": 0.0,
+      "cdo": 0.0,
+      "ceb": 0.0,
+      "gan": 0.0,
+      "hak": 0.0,
+      "id": 0.0,
+      "ilo": 0.0,
+      "ja": 0.0,
+      "jv": 0.0,
+      "km": 0.0,
+      "ko": 0.0,
+      "low_resource_macro_f1": 0.0,
+      "mg": 0.0,
+      "mi": 0.0,
+      "min": 0.0,
       "mn": 0.0,
-      "low_resource_macro_f1": 0.0
+      "mongolian_f1": 0.0,
+      "ms": 0.0,
+      "my": 0.0,
+      "ru": 0.0,
+      "su": 0.0,
+      "th": 0.0,
+      "tl": 0.0,
+      "vi": 0.0,
+      "war": 0.0,
+      "wuu": 0.0,
+      "zh": 0.0,
+      "zh-classical": 0.0,
+      "zh-min-nan": 0.0,
+      "zh-yue": 0.0
     }
   },
   "per_language": {
     "means": {
-      "mongolian_f1": 0.0,
+      "average_f1": 0.0,
+      "low_resource_macro_f1": 0.0,
       "mn": 0.0,
-      "low_resource_macro_f1": 0.0
+      "mongolian_f1": 0.0
     },
     "stderrs": {
-      "mongolian_f1": 0.0,
+      "average_f1": 0.0,
+      "low_resource_macro_f1": 0.0,
       "mn": 0.0,
-      "low_resource_macro_f1": 0.0
+      "mongolian_f1": 0.0
     }
   },
-  "all_mixed": {
+  "matched_random_embedding": {
     "means": {
-      "mongolian_f1": 0.7137,
-      "mn": 0.7137,
-      "low_resource_macro_f1": 0.664
+      "average_f1": 0.6670,
+      "low_resource_macro_f1": 0.6145,
+      "mn": 0.7281,
+      "mongolian_f1": 0.7281
     },
     "stderrs": {
-      "mongolian_f1": 0.0,
+      "average_f1": 0.0,
+      "low_resource_macro_f1": 0.0,
       "mn": 0.0,
-      "low_resource_macro_f1": 0.0
+      "mongolian_f1": 0.0
     }
   },
-  "matched_random": {
+  "matched_random_linguistic": {
     "means": {
-      "mongolian_f1": 0.2283,
-      "mn": 0.2283,
-      "low_resource_macro_f1": 0.2665
+      "average_f1": 0.6489,
+      "low_resource_macro_f1": 0.5872,
+      "mn": 0.7273,
+      "mongolian_f1": 0.7273
     },
     "stderrs": {
-      "mongolian_f1": 0.0,
+      "average_f1": 0.0,
+      "low_resource_macro_f1": 0.0,
       "mn": 0.0,
-      "low_resource_macro_f1": 0.0
+      "mongolian_f1": 0.0
     }
   }
 }
