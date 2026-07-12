@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import random
 from dataclasses import dataclass
@@ -73,6 +74,12 @@ CONDITIONS = [
 ]
 
 MATCHED_RANDOM_SEED_OFFSET = 4242
+UPSAMPLE_EXCLUDE_CONDITIONS = {"per_language", "all_mixed"}
+UPSAMPLE_SEED_OFFSETS = {
+    "linguistic_clustering": 1000,
+    "embedding_clustering": 2000,
+    "matched_random": 3000,
+}
 
 
 @dataclass
@@ -89,6 +96,7 @@ class RunConfig:
     lang_id_epochs: int
     n_clusters: int
     quick: bool
+    upsample_to: Optional[str] = None
 
 
 def build_config(args: argparse.Namespace) -> RunConfig:
@@ -106,6 +114,7 @@ def build_config(args: argparse.Namespace) -> RunConfig:
         lang_id_epochs=1,
         n_clusters=2,
         quick=quick,
+        upsample_to=args.upsample_to,
     )
 
 
@@ -226,6 +235,101 @@ def sample_matched_random_pool(
     rng = np.random.RandomState(seed)
     indices = rng.choice(len(pool), size=n_samples, replace=False).tolist()
     return pool.select(indices), indices
+
+
+def get_upsample_target_n(cfg: RunConfig) -> Optional[int]:
+    if not cfg.upsample_to:
+        return None
+    if cfg.upsample_to == "all_mixed":
+        return len(build_train_pool(cfg))
+    raise ValueError(f"Unknown upsample_to reference: {cfg.upsample_to}")
+
+
+def upsample_seed_for_condition(cfg: RunConfig, condition_name: str) -> int:
+    return cfg.seed + UPSAMPLE_SEED_OFFSETS.get(condition_name, 9000)
+
+
+def upsample_raw_dataset(
+    raw_ds: Dataset,
+    target_n: int,
+    seed: int,
+) -> Tuple[Dataset, Dict]:
+    n_unique = len(raw_ds)
+    if n_unique >= target_n:
+        return raw_ds, {
+            "upsampled": False,
+            "n_unique_train_samples": n_unique,
+            "n_train_samples": n_unique,
+            "upsample_target_n": target_n,
+        }
+    rng = np.random.RandomState(seed)
+    indices = rng.choice(n_unique, size=target_n, replace=True).tolist()
+    return raw_ds.select(indices), {
+        "upsampled": True,
+        "n_unique_train_samples": n_unique,
+        "n_train_samples": target_n,
+        "upsample_target_n": target_n,
+        "upsample_seed": seed,
+        "upsample_with_replacement": True,
+    }
+
+
+def compute_training_schedule(
+    n_train_samples: int,
+    batch_size: int,
+    num_epochs: int,
+) -> Dict:
+    """Estimate HF Trainer steps: ceil(n / batch_size) per epoch."""
+    steps_per_epoch = max(1, math.ceil(n_train_samples / batch_size))
+    total_steps = steps_per_epoch * num_epochs
+    samples_per_epoch = n_train_samples
+    total_sample_updates = samples_per_epoch * num_epochs
+    return {
+        "steps_per_epoch": steps_per_epoch,
+        "total_steps": total_steps,
+        "samples_per_epoch": samples_per_epoch,
+        "total_sample_updates": total_sample_updates,
+        "per_device_train_batch_size": batch_size,
+        "num_train_epochs": num_epochs,
+    }
+
+
+def apply_training_budget(
+    raw_ds: Dataset,
+    cfg: RunConfig,
+    condition_name: str,
+) -> Tuple[Dataset, Dict]:
+    meta: Dict = {
+        "condition": condition_name,
+        "n_unique_train_samples": len(raw_ds),
+        "n_train_samples": len(raw_ds),
+        "upsampled": False,
+        "upsample_to": cfg.upsample_to,
+    }
+    target_n = get_upsample_target_n(cfg)
+    if (
+        target_n is not None
+        and condition_name not in UPSAMPLE_EXCLUDE_CONDITIONS
+        and len(raw_ds) < target_n
+    ):
+        raw_ds, up_meta = upsample_raw_dataset(
+            raw_ds,
+            target_n=target_n,
+            seed=upsample_seed_for_condition(cfg, condition_name),
+        )
+        meta.update(up_meta)
+    schedule = compute_training_schedule(len(raw_ds), cfg.batch_size, cfg.max_epochs)
+    meta.update(schedule)
+    print(
+        f"[{condition_name}] train_budget: "
+        f"unique={meta['n_unique_train_samples']} "
+        f"train_n={meta['n_train_samples']} "
+        f"steps/epoch={schedule['steps_per_epoch']} "
+        f"total_steps={schedule['total_steps']} "
+        f"epochs={cfg.max_epochs} batch={cfg.batch_size}"
+        + (" (upsampled)" if meta.get("upsampled") else "")
+    )
+    return raw_ds, meta
 
 
 # ---------------------------------------------------------------------------
@@ -413,7 +517,7 @@ def train_and_evaluate_ner(
     device: torch.device,
     save_dir: Optional[str] = None,
     train_ds: Optional[Dataset] = None,
-) -> Dict[str, float]:
+) -> Tuple[Dict[str, float], Dict]:
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     if train_ds is None:
         train_ds = prepare_ner_dataset(train_langs, "train", tokenizer, cfg)
@@ -452,12 +556,18 @@ def train_and_evaluate_ner(
     trainer.train()
     model.to(device)
 
+    train_meta = {
+        "global_step": int(trainer.state.global_step),
+        "n_train_samples": len(train_ds),
+        **compute_training_schedule(len(train_ds), cfg.batch_size, cfg.max_epochs),
+    }
+
     scores: Dict[str, float] = {}
     for lang in eval_langs:
         scores[lang] = evaluate_lang_f1(model, tokenizer, lang, cfg, device)
     scores[PRIMARY_METRIC_KEY] = scores.get(TARGET_LANG, 0.0)
     scores["average_f1"] = float(np.mean(list(scores.values())))
-    return scores
+    return scores, train_meta
 
 
 def evaluate_lang_f1(
@@ -516,11 +626,18 @@ def run_condition(
     cfg: RunConfig,
     device: torch.device,
     train_ds: Optional[Dataset] = None,
+    raw_train_ds: Optional[Dataset] = None,
     extra_meta: Optional[Dict] = None,
 ) -> Dict:
     subdir = os.path.join(cfg.out_dir, name)
     os.makedirs(subdir, exist_ok=True)
-    scores = train_and_evaluate_ner(
+    budget_meta: Dict = {}
+    if train_ds is None:
+        raw_ds = raw_train_ds or load_raw_ner_dataset(train_langs, "train", cfg)
+        raw_ds, budget_meta = apply_training_budget(raw_ds, cfg, name)
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        train_ds = tokenize_ner_dataset(raw_ds, tokenizer, cfg.max_length)
+    scores, train_meta = train_and_evaluate_ner(
         train_langs=train_langs,
         eval_langs=eval_langs,
         cfg=cfg,
@@ -531,8 +648,9 @@ def run_condition(
     result = {
         "means": scores,
         "train_langs": train_langs,
-        "n_train_samples": len(train_ds) if train_ds is not None else count_train_samples(train_langs, cfg),
+        "n_train_samples": train_meta["n_train_samples"],
         "cluster_map": cluster_map or {},
+        "training_budget": {**budget_meta, **train_meta},
     }
     if extra_meta:
         result.update(extra_meta)
@@ -553,14 +671,12 @@ def run_matched_random_condition(
         n_samples=n_samples,
         seed=cfg.seed + MATCHED_RANDOM_SEED_OFFSET,
     )
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    train_ds = tokenize_ner_dataset(subset, tokenizer, cfg.max_length)
     meta_path = os.path.join(cfg.out_dir, "matched_random_indices.json")
     with open(meta_path, "w") as f:
         json.dump(
             {
                 "reference_condition": reference_condition,
-                "n_train_samples": len(indices),
+                "matched_n_before_upsample": len(indices),
                 "pool_size": len(pool),
                 "sample_indices": indices,
                 "random_seed": cfg.seed + MATCHED_RANDOM_SEED_OFFSET,
@@ -575,10 +691,10 @@ def run_matched_random_condition(
         cluster_map=None,
         cfg=cfg,
         device=device,
-        train_ds=train_ds,
+        raw_train_ds=subset,
         extra_meta={
             "matched_to": reference_condition,
-            "n_train_samples": len(indices),
+            "matched_n_before_upsample": len(indices),
             "pool_size": len(pool),
         },
     )
@@ -608,6 +724,8 @@ def build_clustering_meta(
             "max_eval_samples_per_lang": cfg.max_eval_samples_per_lang,
             "n_clusters": cfg.n_clusters,
             "quick": cfg.quick,
+            "upsample_to": cfg.upsample_to,
+            "upsample_target_n": get_upsample_target_n(cfg),
         },
     }
 
@@ -706,7 +824,10 @@ def run_experiment(cfg: RunConfig) -> Dict:
             "model": MODEL_NAME,
             "seed": cfg.seed,
             "max_epochs": cfg.max_epochs,
+            "batch_size": cfg.batch_size,
             "quick": cfg.quick,
+            "upsample_to": cfg.upsample_to,
+            "upsample_target_n": get_upsample_target_n(cfg),
         },
     }
     return results
@@ -732,6 +853,13 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help="Number of seeds to run (default: 1 if --quick else 3)",
+    )
+    p.add_argument(
+        "--upsample_to",
+        type=str,
+        default=None,
+        help='Bootstrap-upsampling reference for train budget. Use "all_mixed" to '
+        "match the 5-language pool size (excludes per_language and all_mixed).",
     )
     p.add_argument("--quick", action="store_true", help="Smoke test (1 epoch, tiny data)")
     return p.parse_args()
@@ -760,6 +888,7 @@ if __name__ == "__main__":
             lang_id_epochs=cfg.lang_id_epochs,
             n_clusters=cfg.n_clusters,
             quick=cfg.quick,
+            upsample_to=cfg.upsample_to,
         )
         print(
             f"=== Running seed {seed} ({i + 1}/{num_seeds}) -> {run_dir} "
