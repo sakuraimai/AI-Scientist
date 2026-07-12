@@ -1,8 +1,8 @@
 [
   {
-    "Name": "largest_cluster_downsample_budget",
-    "Title": "Largest-Cluster Budget: cap=0 Train with Fair Downsample Control",
-    "Experiment": "Default protocol is now implemented: cap=0 full WikiAnn; N_ref = largest cluster train size after clustering; downsample all_mixed and matched_random to N_ref (no upsampling duplicates). Verify clustering beats matched_random on low_resource_macro_f1 and/or average_f1 under this budget. Legacy cap500: --max_train_per_lang 500 --downsample_to none.",
+    "Name": "target_cluster_downsample_budget",
+    "Title": "Target-Cluster Budget: cap=0 with Fair Matched Control",
+    "Experiment": "Six-condition protocol: cap=0; matched_random_embedding samples N=embedding target cluster; matched_random_linguistic samples N=linguistic target cluster; all_mixed uses full pool (ceiling). Verify clustering beats its paired matched control on low_resource_macro_f1 / average_f1.",
     "Interestingness": 9,
     "Feasibility": 8,
     "Novelty": 7

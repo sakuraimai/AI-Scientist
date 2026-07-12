@@ -1,16 +1,18 @@
 """
 asian_ner — AI Scientist v1 template (minimal PoC)
 
-Compares five multilingual NER training regimes on WikiAnn:
-  1. linguistic_clustering  — Head-parameter grouping (ACL 2023 lineage)
-  2. embedding_clustering   — XLM-R [CLS] embeddings + agglomerative clustering
-  3. per_language           — monolingual baseline (Mongolian only for mn metric)
-  4. all_mixed              — train on all languages jointly
-  5. matched_random         — same train budget N_ref as largest cluster, random pool sample
+Compares six multilingual NER training regimes on WikiAnn:
+  1. linguistic_clustering       — Head-parameter grouping (ACL 2023 lineage)
+  2. embedding_clustering        — XLM-R [CLS] embeddings + agglomerative clustering
+  3. per_language                — monolingual baseline (Mongolian only for mn metric)
+  4. all_mixed                   — train on all languages jointly (full cap=0 pool; ceiling)
+  5. matched_random_embedding    — N_ref = embedding target cluster; random pool sample
+  6. matched_random_linguistic   — N_ref = linguistic target cluster; random pool sample
 
 Primary metrics: low_resource_macro_f1 and average_f1 (pool-wide); mongolian_f1 illustrative.
 
-Default protocol: cap=0 (full WikiAnn) + downsample all_mixed/matched_random to largest-cluster N_ref.
+Default protocol: cap=0; matched controls sample to each clustering target cluster n;
+all_mixed uses the full pool (no downsample).
 
 Usage:
   python experiment.py --out_dir run_0
@@ -81,20 +83,25 @@ CONDITIONS = [
     "embedding_clustering",
     "per_language",
     "all_mixed",
-    "matched_random",
+    "matched_random_embedding",
+    "matched_random_linguistic",
 ]
 
-MATCHED_RANDOM_SEED_OFFSET = 4242
+MATCHED_RANDOM_SEED_OFFSETS = {
+    "matched_random_embedding": 4242,
+    "matched_random_linguistic": 4343,
+}
 UPSAMPLE_EXCLUDE_CONDITIONS = {"per_language", "all_mixed"}
-DOWNSAMPLE_CONDITIONS = {"all_mixed", "matched_random"}
 UPSAMPLE_SEED_OFFSETS = {
     "linguistic_clustering": 1000,
     "embedding_clustering": 2000,
-    "matched_random": 3000,
+    "matched_random_embedding": 3000,
+    "matched_random_linguistic": 3100,
 }
 DOWNSAMPLE_SEED_OFFSETS = {
     "all_mixed": 4000,
-    "matched_random": 5000,
+    "matched_random_embedding": 5000,
+    "matched_random_linguistic": 5100,
 }
 
 
@@ -115,6 +122,9 @@ class RunConfig:
     upsample_to: Optional[str] = None
     downsample_to: Optional[str] = None
     budget_n_ref: Optional[int] = None
+    budget_n_ref_embedding: Optional[int] = None
+    budget_n_ref_linguistic: Optional[int] = None
+    downsample_conditions: Optional[set] = None
 
 
 def build_config(args: argparse.Namespace) -> RunConfig:
@@ -294,6 +304,74 @@ def largest_cluster_n_ref(
     return max_n, per_map
 
 
+def resolve_training_budget(
+    cfg: RunConfig,
+    emb_map: Dict[str, int],
+    ling_map: Dict[str, int],
+    emb_train_langs: List[str],
+    ling_train_langs: List[str],
+) -> Dict:
+    """Resolve per-condition train budgets; return budget metadata."""
+    emb_n = count_train_samples(emb_train_langs, cfg)
+    ling_n = count_train_samples(ling_train_langs, cfg)
+    pool_n = count_train_samples(LANGUAGES, cfg)
+    cfg.budget_n_ref_embedding = emb_n
+    cfg.budget_n_ref_linguistic = ling_n
+
+    meta: Dict = {
+        "target_lang": TARGET_LANG,
+        "embedding_train_langs": sorted(emb_train_langs),
+        "linguistic_train_langs": sorted(ling_train_langs),
+        "embedding_cluster_n_samples": emb_n,
+        "linguistic_cluster_n_samples": ling_n,
+        "all_mixed_n_samples": pool_n,
+        "matched_random_embedding_n": emb_n,
+        "matched_random_linguistic_n": ling_n,
+    }
+
+    if cfg.downsample_to == "largest_cluster":
+        n_ref, cluster_sizes = largest_cluster_n_ref([emb_map, ling_map], cfg)
+        cfg.budget_n_ref = n_ref
+        cfg.downsample_conditions = {
+            "all_mixed",
+            "matched_random_embedding",
+            "matched_random_linguistic",
+        }
+        meta.update(
+            {
+                "mode": "largest_cluster_downsample",
+                "n_ref": n_ref,
+                "cluster_sizes": cluster_sizes,
+                "downsample_conditions": sorted(cfg.downsample_conditions),
+            }
+        )
+        meta["matched_random_embedding_n"] = n_ref
+        meta["matched_random_linguistic_n"] = n_ref
+        cfg.budget_n_ref_embedding = n_ref
+        cfg.budget_n_ref_linguistic = n_ref
+        print(
+            f"[budget] largest_cluster legacy N_ref={n_ref} "
+            f"(downsample {sorted(cfg.downsample_conditions)})"
+        )
+        return meta
+
+    # Default (target_cluster): dual matched controls; all_mixed full pool.
+    cfg.budget_n_ref = None
+    cfg.downsample_conditions = set()
+    meta.update(
+        {
+            "mode": "target_cluster_matched_controls",
+            "downsample_conditions": [],
+        }
+    )
+    print(
+        f"[budget] target_cluster matched: embedding N={emb_n} "
+        f"(langs={sorted(emb_train_langs)}), linguistic N={ling_n} "
+        f"(langs={sorted(ling_train_langs)}); all_mixed N={pool_n} (full pool)"
+    )
+    return meta
+
+
 def sample_matched_random_pool(
     pool: Dataset,
     n_samples: int,
@@ -404,7 +482,8 @@ def apply_training_budget(
     }
     if (
         cfg.budget_n_ref is not None
-        and condition_name in DOWNSAMPLE_CONDITIONS
+        and cfg.downsample_conditions
+        and condition_name in cfg.downsample_conditions
         and len(raw_ds) > cfg.budget_n_ref
     ):
         raw_ds, down_meta = downsample_raw_dataset(
@@ -797,35 +876,37 @@ def run_condition(
 
 
 def run_matched_random_condition(
+    condition_name: str,
     n_samples: int,
     eval_langs: List[str],
     cfg: RunConfig,
     device: torch.device,
-    reference_condition: str = "embedding_clustering",
+    reference_condition: str,
 ) -> Dict:
-    """Random N-sample control matched to the reference train budget."""
+    """Random N-sample control matched to a clustering condition's train budget."""
     pool = build_train_pool(cfg)
+    seed_offset = MATCHED_RANDOM_SEED_OFFSETS[condition_name]
     subset, indices = sample_matched_random_pool(
         pool,
         n_samples=n_samples,
-        seed=cfg.seed + MATCHED_RANDOM_SEED_OFFSET,
+        seed=cfg.seed + seed_offset,
     )
-    meta_path = os.path.join(cfg.out_dir, "matched_random_indices.json")
+    meta_path = os.path.join(cfg.out_dir, f"{condition_name}_indices.json")
     with open(meta_path, "w") as f:
         json.dump(
             {
+                "condition": condition_name,
                 "reference_condition": reference_condition,
                 "matched_n": len(indices),
-                "budget_n_ref": cfg.budget_n_ref,
                 "pool_size": len(pool),
                 "sample_indices": indices,
-                "random_seed": cfg.seed + MATCHED_RANDOM_SEED_OFFSET,
+                "random_seed": cfg.seed + seed_offset,
             },
             f,
             indent=2,
         )
     return run_condition(
-        "matched_random",
+        condition_name,
         train_langs=LANGUAGES,
         eval_langs=eval_langs,
         cluster_map=None,
@@ -835,7 +916,6 @@ def run_matched_random_condition(
         extra_meta={
             "matched_to": reference_condition,
             "matched_n": len(indices),
-            "budget_n_ref": cfg.budget_n_ref,
             "pool_size": len(pool),
         },
     )
@@ -875,6 +955,8 @@ def build_clustering_meta(
             "upsample_target_n": get_upsample_target_n(cfg),
             "downsample_to": cfg.downsample_to,
             "budget_n_ref": cfg.budget_n_ref,
+            "budget_n_ref_embedding": cfg.budget_n_ref_embedding,
+            "budget_n_ref_linguistic": cfg.budget_n_ref_linguistic,
         },
     }
     if budget_meta:
@@ -918,30 +1000,6 @@ def run_experiment(cfg: RunConfig) -> Dict:
     ling_map = cluster_linguistic(LANGUAGES)
     emb_map, emb_meta = cluster_embedding(LANGUAGES, cfg, device)
 
-    budget_meta: Optional[Dict] = None
-    if cfg.downsample_to == "largest_cluster":
-        n_ref, cluster_sizes = largest_cluster_n_ref([emb_map, ling_map], cfg)
-        cfg.budget_n_ref = n_ref
-        budget_meta = {
-            "mode": "largest_cluster_downsample",
-            "n_ref": n_ref,
-            "cluster_sizes": cluster_sizes,
-            "downsample_conditions": sorted(DOWNSAMPLE_CONDITIONS),
-        }
-        print(
-            f"[budget] largest_cluster N_ref={n_ref} "
-            f"(downsample {sorted(DOWNSAMPLE_CONDITIONS)})"
-        )
-
-    clustering_meta = build_clustering_meta(ling_map, emb_meta, cfg, budget_meta)
-
-    with open(os.path.join(cfg.out_dir, "cluster_linguistic.json"), "w") as f:
-        json.dump(ling_map, f, indent=2)
-    with open(os.path.join(cfg.out_dir, "cluster_embedding.json"), "w") as f:
-        json.dump(emb_map, f, indent=2)
-    with open(os.path.join(cfg.out_dir, "clustering_meta.json"), "w") as f:
-        json.dump(clustering_meta, f, indent=2)
-
     eval_langs = LANGUAGES
     emb_train_langs = post_cluster_train_langs(
         TARGET_LANG,
@@ -958,7 +1016,23 @@ def run_experiment(cfg: RunConfig) -> Dict:
         cfg,
         source="linguistic",
     )
-    matched_n = cfg.budget_n_ref if cfg.budget_n_ref is not None else emb_n_samples
+
+    budget_meta = resolve_training_budget(
+        cfg, emb_map, ling_map, emb_train_langs, ling_train_langs
+    )
+    clustering_meta = build_clustering_meta(ling_map, emb_meta, cfg, budget_meta)
+
+    with open(os.path.join(cfg.out_dir, "cluster_linguistic.json"), "w") as f:
+        json.dump(ling_map, f, indent=2)
+    with open(os.path.join(cfg.out_dir, "cluster_embedding.json"), "w") as f:
+        json.dump(emb_map, f, indent=2)
+    with open(os.path.join(cfg.out_dir, "clustering_meta.json"), "w") as f:
+        json.dump(clustering_meta, f, indent=2)
+
+    matched_emb_n = cfg.budget_n_ref_embedding or emb_n_samples
+    matched_ling_n = cfg.budget_n_ref_linguistic or count_train_samples(
+        ling_train_langs, cfg
+    )
 
     results = {
         "linguistic_clustering": run_condition(
@@ -993,11 +1067,21 @@ def run_experiment(cfg: RunConfig) -> Dict:
             cfg=cfg,
             device=device,
         ),
-        "matched_random": run_matched_random_condition(
-            n_samples=matched_n,
+        "matched_random_embedding": run_matched_random_condition(
+            "matched_random_embedding",
+            n_samples=matched_emb_n,
             eval_langs=eval_langs,
             cfg=cfg,
             device=device,
+            reference_condition="embedding_clustering",
+        ),
+        "matched_random_linguistic": run_matched_random_condition(
+            "matched_random_linguistic",
+            n_samples=matched_ling_n,
+            eval_langs=eval_langs,
+            cfg=cfg,
+            device=device,
+            reference_condition="linguistic_clustering",
         ),
         "metadata": {
             "languages": LANGUAGES,
@@ -1014,10 +1098,12 @@ def run_experiment(cfg: RunConfig) -> Dict:
             "upsample_to": cfg.upsample_to,
             "upsample_target_n": get_upsample_target_n(cfg),
             "downsample_to": cfg.downsample_to,
-            "budget_n_ref": cfg.budget_n_ref,
+            "budget": budget_meta,
             "embedding_cluster_n_samples": emb_n_samples,
             "linguistic_cluster_n_samples": count_train_samples(ling_train_langs, cfg),
-            "matched_random_n_samples": matched_n,
+            "matched_random_embedding_n_samples": matched_emb_n,
+            "matched_random_linguistic_n_samples": matched_ling_n,
+            "all_mixed_n_samples": budget_meta.get("all_mixed_n_samples"),
         },
     }
     return results
@@ -1050,14 +1136,15 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help='Legacy bootstrap-upsampling reference (e.g. "all_mixed"). '
-        "Mutually exclusive with --downsample_to largest_cluster.",
+        "Mutually exclusive with --downsample_to target_cluster.",
     )
     p.add_argument(
         "--downsample_to",
         type=str,
-        default="largest_cluster",
-        help='Downsample all_mixed/matched_random budget reference. '
-        '"largest_cluster" (default) or "none".',
+        default="target_cluster",
+        help='Budget mode. "target_cluster" (default): dual matched controls at each '
+        "cluster n, all_mixed full pool. "
+        '"largest_cluster": legacy downsample all/matched to max cluster. "none": no override.',
     )
     p.add_argument("--quick", action="store_true", help="Smoke test (1 epoch, tiny data)")
     return p.parse_args()

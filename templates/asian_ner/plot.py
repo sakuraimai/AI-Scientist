@@ -10,22 +10,23 @@ CONDITIONS = [
     "embedding_clustering",
     "per_language",
     "all_mixed",
-    "matched_random",
+    "matched_random_embedding",
+    "matched_random_linguistic",
 ]
 CONDITION_LABELS = {
     "linguistic_clustering": "Linguistic",
     "embedding_clustering": "Embedding",
     "per_language": "Per-Language",
     "all_mixed": "All Mixed",
-    "matched_random": "Matched Random",
+    "matched_random_embedding": "Matched (Emb)",
+    "matched_random_linguistic": "Matched (Ling)",
 }
 PRIMARY_METRIC = "mongolian_f1"
 LOW_RESOURCE_METRIC = "low_resource_macro_f1"
 
 # CREATE LEGEND -- ADD RUNS HERE THAT WILL BE PLOTTED
-# run_0 = human cap500 floor (29-lang pool); run_1+ = AI Scientist experiments
 labels = {
-    "run_0": "Human cap500 floor",
+    "run_0": "Human floor",
 }
 
 
@@ -53,7 +54,7 @@ colors = generate_color_palette(len(runs))
 run_data = {run: load_run_data(run) for run in runs}
 
 # Plot 1: Mongolian F1 across conditions (primary metric)
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(12, 6))
 x = np.arange(len(CONDITIONS))
 width = 0.8 / max(len(runs), 1)
 
@@ -78,79 +79,75 @@ for i, run in enumerate(runs):
         capsize=4,
     )
 
-plt.xticks(x, [CONDITION_LABELS[c] for c in CONDITIONS])
-plt.ylabel("Mongolian Entity F1")
-plt.title("Primary Metric: Mongolian (mn) F1 Across Training Regimes")
-plt.ylim(0, 1.0)
+plt.xticks(x, [CONDITION_LABELS[c] for c in CONDITIONS], rotation=25, ha="right")
+plt.ylabel("Mongolian F1")
+plt.title("Mongolian NER F1 by Training Regime")
 plt.legend()
-plt.grid(True, axis="y", alpha=0.2)
 plt.tight_layout()
-plt.savefig("mongolian_f1_across_conditions.png")
+plt.savefig("mongolian_f1_by_condition.png", dpi=150)
 plt.close()
 
-# Plot 2: Per-language F1 for run_0 baseline (grouped by condition)
-baseline_run = "run_0" if "run_0" in run_data and run_data["run_0"] else runs[0] if runs else None
-if baseline_run and run_data[baseline_run]:
-    plt.figure(figsize=(12, 6))
-    x = np.arange(len(LANGUAGES))
-    width = 0.8 / len(CONDITIONS)
+# Plot 2: Low-resource macro F1
+plt.figure(figsize=(12, 6))
+for i, run in enumerate(runs):
+    data = run_data[run]
+    if data is None:
+        continue
+    means = []
+    stderrs = []
+    for cond in CONDITIONS:
+        cond_data = data["final_info"].get(cond, {})
+        means.append(cond_data.get("means", {}).get(LOW_RESOURCE_METRIC, 0.0))
+        stderrs.append(cond_data.get("stderrs", {}).get(LOW_RESOURCE_METRIC, 0.0))
+    offset = (i - (len(runs) - 1) / 2) * width
+    plt.bar(
+        x + offset,
+        means,
+        width,
+        yerr=stderrs,
+        label=labels[run],
+        color=colors[i],
+        capsize=4,
+    )
 
-    for i, cond in enumerate(CONDITIONS):
-        cond_data = run_data[baseline_run]["final_info"].get(cond, {})
-        means = [cond_data.get("means", {}).get(lang, 0.0) for lang in LANGUAGES]
-        stderrs = [cond_data.get("stderrs", {}).get(lang, 0.0) for lang in LANGUAGES]
-        offset = (i - (len(CONDITIONS) - 1) / 2) * width
-        plt.bar(
-            x + offset,
-            means,
-            width,
-            yerr=stderrs,
-            label=CONDITION_LABELS[cond],
-            capsize=3,
-        )
+plt.xticks(x, [CONDITION_LABELS[c] for c in CONDITIONS], rotation=25, ha="right")
+plt.ylabel("Low-Resource Macro F1")
+plt.title("Low-Resource Stratum Macro F1 by Training Regime")
+plt.legend()
+plt.tight_layout()
+plt.savefig("low_resource_macro_f1_by_condition.png", dpi=150)
+plt.close()
 
-    plt.xticks(x, LANGUAGES)
-    plt.ylabel("Entity F1")
-    plt.title(f"Per-Language F1 by Condition ({labels.get(baseline_run, baseline_run)})")
-    plt.ylim(0, 1.0)
-    plt.legend()
-    plt.grid(True, axis="y", alpha=0.2)
+# Plot 3: Per-language F1 heatmap for the first available run
+if runs and run_data[runs[0]] is not None:
+    fi = run_data[runs[0]]["final_info"]
+    skip = {PRIMARY_METRIC, LOW_RESOURCE_METRIC, "average_f1", "mongolian_f1"}
+    langs = sorted(
+        k
+        for k in fi.get("embedding_clustering", {}).get("means", {})
+        if k not in skip
+    )
+    plot_conditions = [
+        "linguistic_clustering",
+        "embedding_clustering",
+        "matched_random_embedding",
+        "matched_random_linguistic",
+        "all_mixed",
+    ]
+    matrix = []
+    for cond in plot_conditions:
+        row = [fi.get(cond, {}).get("means", {}).get(lang, 0.0) for lang in langs]
+        matrix.append(row)
+    matrix = np.array(matrix)
+
+    plt.figure(figsize=(14, 5))
+    plt.imshow(matrix, aspect="auto", vmin=0, vmax=1, cmap="viridis")
+    plt.colorbar(label="F1")
+    plt.yticks(range(len(plot_conditions)), [CONDITION_LABELS[c] for c in plot_conditions])
+    plt.xticks(range(len(langs)), langs, rotation=90)
+    plt.title(f"Per-Language F1 ({runs[0]})")
     plt.tight_layout()
-    plt.savefig("per_language_f1_by_condition.png")
+    plt.savefig("per_language_f1_heatmap.png", dpi=150)
     plt.close()
 
-# Plot 3: Cluster assignments visualization (baseline run)
-if baseline_run and run_data[baseline_run]:
-    meta = run_data[baseline_run].get("clustering_meta")
-    if meta:
-        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-        for ax, (key, title) in zip(
-            axes,
-            [
-                ("linguistic", "Linguistic Clustering (Head Parameter)"),
-                ("embedding", "Embedding Clustering (Agglomerative)"),
-            ],
-        ):
-            section = meta.get(key, {})
-            cluster_map = section.get("cluster_map", {})
-            if not cluster_map:
-                continue
-            langs = list(cluster_map.keys())
-            cluster_ids = [cluster_map[l] for l in langs]
-            unique_clusters = sorted(set(cluster_ids))
-            palette = generate_color_palette(len(unique_clusters))
-            cid_to_color = {c: palette[i] for i, c in enumerate(unique_clusters)}
-            bar_colors = [cid_to_color[cid] for cid in cluster_ids]
-            ax.bar(langs, [1] * len(langs), color=bar_colors)
-            ax.set_title(title)
-            ax.set_ylabel("Cluster Assignment")
-            ax.set_ylim(0, 1.2)
-            for j, (lang, cid) in enumerate(zip(langs, cluster_ids)):
-                ax.text(j, 0.5, f"C{cid}", ha="center", va="center", fontweight="bold")
-
-        plt.tight_layout()
-        plt.savefig("cluster_assignments.png")
-        plt.close()
-
-print("Plots saved: mongolian_f1_across_conditions.png, per_language_f1_by_condition.png, cluster_assignments.png")
+print("Saved mongolian_f1_by_condition.png, low_resource_macro_f1_by_condition.png")
