@@ -89,6 +89,12 @@ def parse_arguments():
         choices=["semanticscholar", "openalex"],
         help="Scholar engine to use.",
     )
+    parser.add_argument(
+        "--idea-names",
+        type=str,
+        default=None,
+        help="Comma-separated idea Name fields to run (e.g. typology_weighted_mixture). Default: all novel ideas.",
+    )
     return parser.parse_args()
 
 
@@ -360,7 +366,15 @@ if __name__ == "__main__":
     with open(osp.join(base_dir, "ideas.json"), "w") as f:
         json.dump(ideas, f, indent=4)
 
-    novel_ideas = [idea for idea in ideas if idea["novel"]]
+    novel_ideas = [idea for idea in ideas if idea.get("novel", True)]
+    if args.idea_names:
+        selected = {name.strip() for name in args.idea_names.split(",") if name.strip()}
+        novel_ideas = [idea for idea in novel_ideas if idea["Name"] in selected]
+        missing = selected - {idea["Name"] for idea in novel_ideas}
+        if missing:
+            raise ValueError(f"Unknown or non-novel idea names: {sorted(missing)}")
+        if not novel_ideas:
+            raise ValueError(f"No ideas matched --idea-names: {sorted(selected)}")
     # novel_ideas = list(reversed(novel_ideas))
 
     if args.parallel > 0:

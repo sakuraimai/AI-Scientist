@@ -5,15 +5,17 @@
     "Experiment": "Six-condition protocol: cap=0; matched_random_embedding samples N=embedding target cluster; matched_random_linguistic samples N=linguistic target cluster; all_mixed uses full pool (ceiling). Verify clustering beats its paired matched control on low_resource_macro_f1 / average_f1.",
     "Interestingness": 9,
     "Feasibility": 8,
-    "Novelty": 7
+    "Novelty": 7,
+    "novel": true
   },
   {
     "Name": "head_final_cohesion",
     "Title": "Constrained Clustering: Keep ja-ko-mn Together for East-Asian Transfer",
-    "Experiment": "Modify cluster_embedding() so ja, ko, mn must share one cluster (hard or soft constraint) before/during agglomerative clustering. Legacy 5-lang run_2: hybrid silhouette k=3 splits ja away from {ko,mn}, hurting transfer. Add cohesion constraint. Success: embedding_clustering beats matched_random on low_resource_macro_f1; mn F1 is secondary evidence.",
+    "Experiment": "Modify cluster_embedding() so ja, ko, mn must share one cluster (hard or soft constraint) before/during agglomerative clustering. Cap500 floor: embedding groups {ja,ko,mn} but still loses to matched_random on pool transfer. Add cohesion constraint. Success: embedding_clustering beats matched_random on low_resource_macro_f1; mn F1 is secondary evidence.",
     "Interestingness": 9,
     "Feasibility": 8,
-    "Novelty": 7
+    "Novelty": 7,
+    "novel": true
   },
   {
     "Name": "script_aware_mn_ru_penalty",
@@ -21,7 +23,8 @@
     "Experiment": "Extend _hybrid_lang_distance_matrix() with an extra penalty when pairing typologically distant languages that share script (e.g. mn-ru). Goal: improve cluster purity and pool-wide transfer, not mn-only tuning. Tune penalty weight. Compare embedding vs matched_random on low_resource_macro_f1 and per-language F1.",
     "Interestingness": 9,
     "Feasibility": 8,
-    "Novelty": 8
+    "Novelty": 8,
+    "novel": true
   },
   {
     "Name": "typology_weighted_mixture",
@@ -29,7 +32,8 @@
     "Experiment": "Replace hard langs_in_cluster() selection with typology-based language weights across the pool. Sample or weight training sentences proportional to typology similarity to each eval language (or cluster centroid). Still report as embedding_clustering regime. Target: beat matched_random on low_resource_macro_f1 and pool macro F1.",
     "Interestingness": 9,
     "Feasibility": 6,
-    "Novelty": 9
+    "Novelty": 9,
+    "novel": true
   },
   {
     "Name": "k2_silhouette_head_final",
@@ -37,7 +41,8 @@
     "Experiment": "Change _select_k_by_silhouette() to search k in {2,3,4} with optional typology-prior merge so related East-Asian languages co-locate. Addresses pathological splits without abandoning data-driven k. Evaluate pool-wide transfer vs matched_random.",
     "Interestingness": 8,
     "Feasibility": 8,
-    "Novelty": 7
+    "Novelty": 7,
+    "novel": true
   },
   {
     "Name": "low_resource_reweight",
@@ -45,6 +50,52 @@
     "Experiment": "Implement augment_train_raw(): up-weight sentences from low_resource_macro_f1 stratum languages within selected transfer languages (not mn-only). Improves low-resource transfer without changing cluster assignment logic. Success: low_resource_macro_f1 > matched_random.",
     "Interestingness": 8,
     "Feasibility": 9,
-    "Novelty": 7
+    "Novelty": 7,
+    "novel": true
+  },
+  {
+    "Name": "labse_embedding_clustering",
+    "Title": "Embedding Clustering with LaBSE: Leveraging Sentence Transformers for Robust Clusters",
+    "Experiment": "Modify _sentence_cls_embeddings() to use LaBSE for obtaining language embeddings. Integrate these embeddings into the existing clustering procedure in cluster_embedding(). Compare the performance of LaBSE-based embedding clustering with matched_random_embedding and original embedding_clustering on low_resource_macro_f1 and average_f1.",
+    "Interestingness": 9,
+    "Feasibility": 8,
+    "Novelty": 9,
+    "novel": true
+  },
+  {
+    "Name": "dynamic_cluster_sampling",
+    "Title": "Dynamic Cluster Sampling for Diverse and Balanced Training",
+    "Experiment": "Modify the post_cluster_train_langs() function to dynamically select a subset of languages from the determined clusters for each training epoch. The selection criteria will prioritize languages with underrepresented scripts or linguistic features, ensuring a balanced diversity. Ensure the dynamic selection process is efficient and integrates seamlessly with the existing training loop. Evaluate the modified embedding_clustering and linguistic_clustering conditions against matched_random_embedding and matched_random_linguistic on low_resource_macro_f1 and average_f1.",
+    "Interestingness": 9,
+    "Feasibility": 8,
+    "Novelty": 8,
+    "novel": true
+  },
+  {
+    "Name": "progressive_finetuning",
+    "Title": "Progressive Fine-Tuning for Enhanced Transfer Learning in Multilingual NER",
+    "Experiment": "Implement a two-stage training process. In the first stage, train the model using the full 29-language pool (all_mixed condition). In the second stage, fine-tune the model using languages from the target cluster identified by embedding_clustering and linguistic_clustering. Modify the train_and_evaluate_ner() function to support this two-stage training process. Compare the performance of this progressive fine-tuning approach with matched_random_embedding and matched_random_linguistic on low_resource_macro_f1 and average_f1.",
+    "Interestingness": 10,
+    "Feasibility": 7,
+    "Novelty": 9,
+    "novel": true
+  },
+  {
+    "Name": "meta_learning_multilingual",
+    "Title": "Meta-Learning for Enhanced Multilingual NER Transfer",
+    "Experiment": "Implement a meta-learning approach in the train_and_evaluate_ner() function. During training, alternate between embedding_clustering and linguistic_clustering clusters every few epochs. After each switch, perform meta-updates that optimize for low_resource_macro_f1. Evaluate the meta-learning approach against standard embedding_clustering and matched_random_embedding on low_resource_macro_f1 and average_f1.",
+    "Interestingness": 10,
+    "Feasibility": 8,
+    "Novelty": 9,
+    "novel": true
+  },
+  {
+    "Name": "multitask_auxiliary",
+    "Title": "Enhancing NER with Auxiliary Task Multitask Learning",
+    "Experiment": "Modify the train_and_evaluate_ner function to include an auxiliary part-of-speech (POS) tagging task alongside the primary NER task. Derive POS labels from the existing WikiAnn data by using a pre-trained POS tagger. Train the model in a multitask learning setup where the loss is a weighted sum of the NER loss and the POS tagging loss. Evaluate the performance of this approach against standard embedding_clustering and matched_random_embedding on low_resource_macro_f1 and average_f1.",
+    "Interestingness": 10,
+    "Feasibility": 7,
+    "Novelty": 9,
+    "novel": true
   }
 ]
