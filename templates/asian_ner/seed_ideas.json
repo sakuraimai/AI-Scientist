@@ -1,58 +1,58 @@
 [
-    {
-        "Name": "target_cluster_downsample_budget",
-        "Title": "Target-Cluster Budget: cap=0 with Fair Matched Control",
-        "Experiment": "Six-condition protocol: cap=0; matched_random_embedding samples N=embedding target cluster; matched_random_linguistic samples N=linguistic target cluster; all_mixed uses full pool (ceiling). Verify clustering beats its paired matched control on low_resource_macro_f1 / average_f1.",
-        "Interestingness": 9,
-        "Feasibility": 8,
-        "Novelty": 7
-    },
-    {
-        "Name": "head_final_cohesion",
-        "Title": "Constrained Clustering: Keep ja-ko-mn Together for East-Asian Transfer",
-        "Experiment": "Modify cluster_embedding() so ja, ko, mn must share one cluster (hard or soft constraint) before/during agglomerative clustering. Cap500 floor: embedding groups {ja,ko,mn} but still loses to matched_random on pool transfer. Add cohesion constraint. Success: embedding_clustering beats matched_random on low_resource_macro_f1; mn F1 is secondary evidence.",
-        "Interestingness": 9,
-        "Feasibility": 8,
-        "Novelty": 7
-    },
-    {
-        "Name": "script_aware_mn_ru_penalty",
-        "Title": "Script-Aware Typology Distance: Penalize Cyrillic Script Confusion",
-        "Experiment": "Extend _hybrid_lang_distance_matrix() with an extra penalty when pairing typologically distant languages that share script (e.g. mn-ru). Goal: improve cluster purity and pool-wide transfer, not mn-only tuning. Tune penalty weight. Compare embedding vs matched_random on low_resource_macro_f1 and per-language F1.",
-        "Interestingness": 9,
-        "Feasibility": 8,
-        "Novelty": 8
-    },
-    {
-        "Name": "typology_weighted_mixture",
-        "Title": "Soft Typology-Weighted Training Mixture Instead of Hard Cluster Cut",
-        "Experiment": "Replace hard langs_in_cluster() selection with typology-based language weights across the pool. Sample or weight training sentences proportional to typology similarity to each eval language (or cluster centroid). Still report as embedding_clustering regime. Target: beat matched_random on low_resource_macro_f1 and pool macro F1.",
-        "Interestingness": 9,
-        "Feasibility": 6,
-        "Novelty": 9
-    },
-    {
-        "Name": "k2_silhouette_head_final",
-        "Title": "Silhouette k Selection with k>=2 and HEAD_FINAL Merger",
-        "Experiment": "Change _select_k_by_silhouette() to search k in {2,3,4} with optional typology-prior merge so related East-Asian languages co-locate. Addresses pathological splits without abandoning data-driven k. Evaluate pool-wide transfer vs matched_random.",
-        "Interestingness": 8,
-        "Feasibility": 8,
-        "Novelty": 7
-    },
-    {
-        "Name": "low_resource_reweight",
-        "Title": "Low-Resource Stratum Reweighting in Transfer Mixtures",
-        "Experiment": "Implement augment_train_raw(): up-weight sentences from low_resource_macro_f1 stratum languages within selected transfer languages (not mn-only). Improves low-resource transfer without changing cluster assignment logic. Success: low_resource_macro_f1 > matched_random.",
-        "Interestingness": 8,
-        "Feasibility": 9,
-        "Novelty": 7
-    },
-    {
-        "Name": "typology_guided_diversity_expansion",
-        "Title": "Typology-Guided Diversity Expansion: Using Linguistic Distance to Grow, Not Shrink, the Training Pool",
-        "Experiment": "IMPORTANT: cluster_embedding()'s output is NOT deterministic across runs (its embedding computation involves randomness), so do NOT rely on calling cluster_linguistic()/cluster_embedding() to reproduce the floor's base cluster. Instead, hardcode the base cluster directly: BASE_CLUSTER = ['ja', 'ko', 'mn'] (this is the floor's known, fixed cluster for both embedding_clustering and linguistic_clustering on this pool -- do not call cluster_embedding()/cluster_linguistic() to derive it, and do not modify those functions). Use BASE_CLUSTER as the starting train_langs for both conditions in post_cluster_train_langs(), then implement diversity via REPLACEMENT in augment_train_raw(): swap out a fraction R of the base cluster's sentences and replace them with an equal number of sentences from other pool languages, keeping total n_train_samples exactly equal to matched_random_embedding / matched_random_linguistic's N=40100 at every value of R, by construction (removed count == added count). Use SOURCE-SPECIFIC ranking to choose which sentences/languages to bring in: for source='linguistic', rank candidates by pure linguistic/typological distance (URIEL/lang2vec features only, no embeddings) from BASE_CLUSTER; for source='embedding', rank candidates by pure sentence-embedding distance (no typology penalty term) from BASE_CLUSTER's centroid. Sweep the replacement ratio R across the 5 runs: R must be monotonically increasing across runs, with no repeated value, spanning from near-0% (close to floor) to near-100% (close to matched_random), with at least 4 distinct values (e.g. R roughly 10%, 25%, 50%, 75%, 90%, but you may choose different specific values as long as monotonicity/no-duplication/spread hold). Before reporting any run, assert that final n_train_samples equals matched_random's N=40100 for that run; if they differ, treat the run as invalid and fix the code rather than reporting it. Also verify before each run that its R value and resulting language distribution genuinely differ from every previous run in this experiment -- do not repeat a configuration already tested. Success: embedding_clustering and/or linguistic_clustering (with replacement) beats matched_random on low_resource_macro_f1 and/or average_f1 at some value of R, at equal N throughout.",
-        "Interestingness": 9,
-        "Feasibility": 7,
-        "Novelty": 8
-    }
+  {
+    "Name": "target_cluster_downsample_budget",
+    "Title": "Target-Cluster Budget: cap=0 with Fair Matched Control",
+    "Experiment": "Six-condition protocol: cap=0; matched_random_embedding samples N=embedding target cluster; matched_random_linguistic samples N=linguistic target cluster; all_mixed uses full pool (ceiling). Verify clustering beats its paired matched control on low_resource_macro_f1 / average_f1.",
+    "Interestingness": 9,
+    "Feasibility": 8,
+    "Novelty": 7
+  },
+  {
+    "Name": "head_final_cohesion",
+    "Title": "Constrained Clustering: Keep ja-ko-mn Together for East-Asian Transfer",
+    "Experiment": "Modify cluster_embedding() so ja, ko, mn must share one cluster (hard or soft constraint) before/during agglomerative clustering. Cap500 floor: embedding groups {ja,ko,mn} but still loses to matched_random on pool transfer. Add cohesion constraint. Success: embedding_clustering beats matched_random on low_resource_macro_f1; mn F1 is secondary evidence.",
+    "Interestingness": 9,
+    "Feasibility": 8,
+    "Novelty": 7
+  },
+  {
+    "Name": "script_aware_mn_ru_penalty",
+    "Title": "Script-Aware Typology Distance: Penalize Cyrillic Script Confusion",
+    "Experiment": "Extend _hybrid_lang_distance_matrix() with an extra penalty when pairing typologically distant languages that share script (e.g. mn-ru). Goal: improve cluster purity and pool-wide transfer, not mn-only tuning. Tune penalty weight. Compare embedding vs matched_random on low_resource_macro_f1 and per-language F1.",
+    "Interestingness": 9,
+    "Feasibility": 8,
+    "Novelty": 8
+  },
+  {
+    "Name": "typology_weighted_mixture",
+    "Title": "Soft Typology-Weighted Training Mixture Instead of Hard Cluster Cut",
+    "Experiment": "Replace hard langs_in_cluster() selection with typology-based language weights across the pool. Sample or weight training sentences proportional to typology similarity to each eval language (or cluster centroid). Still report as embedding_clustering regime. Target: beat matched_random on low_resource_macro_f1 and pool macro F1.",
+    "Interestingness": 9,
+    "Feasibility": 6,
+    "Novelty": 9
+  },
+  {
+    "Name": "k2_silhouette_head_final",
+    "Title": "Silhouette k Selection with k>=2 and HEAD_FINAL Merger",
+    "Experiment": "Change _select_k_by_silhouette() to search k in {2,3,4} with optional typology-prior merge so related East-Asian languages co-locate. Addresses pathological splits without abandoning data-driven k. Evaluate pool-wide transfer vs matched_random.",
+    "Interestingness": 8,
+    "Feasibility": 8,
+    "Novelty": 7
+  },
+  {
+    "Name": "low_resource_reweight",
+    "Title": "Low-Resource Stratum Reweighting in Transfer Mixtures",
+    "Experiment": "Implement augment_train_raw(): up-weight sentences from low_resource_macro_f1 stratum languages within selected transfer languages (not mn-only). Improves low-resource transfer without changing cluster assignment logic. Success: low_resource_macro_f1 > matched_random.",
+    "Interestingness": 8,
+    "Feasibility": 9,
+    "Novelty": 7
+  },
+  {
+    "Name": "typology_guided_diversity_expansion",
+    "Title": "Typology-Guided Diversity Expansion: Using Linguistic Distance to Grow, Not Shrink, the Training Pool",
+    "Experiment": "IMPORTANT: cluster_embedding()'s output is NOT deterministic across runs, so do NOT rely on calling cluster_linguistic()/cluster_embedding() to reproduce the floor's base cluster. Instead, hardcode the base cluster directly: BASE_CLUSTER = ['ja', 'ko', 'mn'] (do not call cluster_embedding()/cluster_linguistic() to derive it, and do not modify those functions). Use BASE_CLUSTER as train_langs for both embedding_clustering and linguistic_clustering in post_cluster_train_langs().\n\nImplement diversity via REPLACEMENT in augment_train_raw(raw_ds, train_langs, cfg, condition_name), following this EXACT procedure (do not use direct item assignment on a Dataset object -- datasets.Dataset does NOT support raw_ds[i] = ...; it is immutable and must be rebuilt via select()/concatenate_datasets()):\n1. other_langs = [l for l in LANGUAGES if l not in train_langs] (the 29-lang pool minus the base cluster).\n2. candidate_ds = load_raw_ner_dataset(other_langs, 'train', cfg) -- load this as a SEPARATE dataset object, do not reuse raw_ds's own indices as the candidate pool.\n3. n_replace = int(len(raw_ds) * replacement_ratio).\n4. Use a local numpy RandomState seeded from cfg.seed to pick n_replace indices to DROP from raw_ds, and n_replace indices to SAMPLE from candidate_ds.\n5. keep_indices = sorted(set(range(len(raw_ds))) - set(dropped_indices)); base_remaining = raw_ds.select(keep_indices).\n6. sampled_candidates = candidate_ds.select(sampled_candidate_indices).\n7. new_ds = datasets.concatenate_datasets([base_remaining, sampled_candidates]) and return new_ds. Do not mutate raw_ds in place anywhere.\n8. assert len(new_ds) == len(raw_ds), 'replacement must preserve total N' -- raise if this fails rather than silently returning a mismatched dataset.\n\nSweep the replacement ratio R (= replacement_ratio) across the 5 runs: monotonically increasing, no repeated value, spanning from near-0% to near-100%, at least 4 distinct values (e.g. R roughly 10%, 25%, 50%, 75%, 90%). Use SOURCE-SPECIFIC ranking when choosing which candidate languages to sample from candidate_ds (not which individual sentences, language-level is sufficient): for source='linguistic', prefer languages closer by pure linguistic/typological distance (URIEL/lang2vec features only, no embeddings) to BASE_CLUSTER; for source='embedding', prefer languages closer by pure sentence-embedding distance (no typology penalty term) to BASE_CLUSTER's centroid. Before reporting any run, assert final n_train_samples equals matched_random's N=40100; if they differ, treat the run as invalid and fix the code rather than reporting it. Verify before each run that its R value and resulting language distribution differ from every previous run. Success: embedding_clustering and/or linguistic_clustering (with replacement) beats matched_random on low_resource_macro_f1 and/or average_f1 at some value of R, at equal N throughout.",
+    "Interestingness": 9,
+    "Feasibility": 7,
+    "Novelty": 8
+  }
 ]
