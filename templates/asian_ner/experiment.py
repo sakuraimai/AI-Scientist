@@ -72,6 +72,11 @@ LOW_RESOURCE_METRIC_KEY = "low_resource_macro_f1"
 HEAD_FINAL = {"ja", "ko", "mn"}
 HEAD_INITIAL = {"ru"}
 
+# Fixed floor base cluster for typology_guided_diversity_expansion.
+# cluster_embedding()/cluster_linguistic() are NOT called to derive this because
+# cluster_embedding()'s embedding computation is non-deterministic across runs.
+BASE_CLUSTER = ["ja", "ko", "mn"]
+
 LABEL_LIST = ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]
 LABEL2ID = {label: i for i, label in enumerate(LABEL_LIST)}
 ID2LABEL = {i: label for label, i in LABEL2ID.items()}
@@ -126,6 +131,7 @@ class RunConfig:
     budget_n_ref_linguistic: Optional[int] = None
     downsample_conditions: Optional[set] = None
     skip_conditions: Optional[set] = None
+    replacement_ratio: float = 0.0
 
 
 def build_config(args: argparse.Namespace) -> RunConfig:
@@ -149,6 +155,7 @@ def build_config(args: argparse.Namespace) -> RunConfig:
         upsample_to=args.upsample_to,
         downsample_to=downsample_to,
         skip_conditions=getattr(args, "skip_conditions_set", None),
+        replacement_ratio=getattr(args, "replacement_ratio", 0.0),
     )
 
 
@@ -706,8 +713,37 @@ def post_cluster_train_langs(
     cfg: RunConfig,
     source: str,
 ) -> List[str]:
-    """EVOLVE-BLOCK: fallback or augment language set after clustering."""
+    """EVOLVE-BLOCK: fallback or augment language set after clustering.
+
+    For typology_guided_diversity_expansion, the base cluster is fixed to
+    BASE_CLUSTER rather than derived from cluster_map, because
+    cluster_embedding()'s embedding computation is non-deterministic across
+    runs (see notes.txt).
+    """
+    if source in ("embedding", "linguistic"):
+        return list(BASE_CLUSTER)
     return train_langs
+
+
+def _rank_other_langs_by_distance(
+    other_langs: List[str],
+    base_langs: List[str],
+    source: str,
+    cfg: RunConfig,
+    device: Optional[torch.device],
+) -> List[str]:
+    """Rank other_langs nearest-first to base_langs, using a source-specific
+    distance so embedding_clustering and linguistic_clustering bring in
+    diversity by different criteria even though they share BASE_CLUSTER."""
+    if source == "linguistic":
+        base_group = _typology_id(base_langs[0])
+        same_group = [l for l in other_langs if _typology_id(l) == base_group]
+        other_group = [l for l in other_langs if _typology_id(l) != base_group]
+        return same_group + other_group
+    # source == "embedding": pure embedding distance, no typology penalty term.
+    pooled, _ = _sentence_cls_embeddings(list(base_langs) + list(other_langs), cfg, device)
+    base_vec = np.mean([pooled[l] for l in base_langs], axis=0)
+    return sorted(other_langs, key=lambda l: float(np.linalg.norm(pooled[l] - base_vec)))
 
 
 def augment_train_raw(
@@ -715,9 +751,56 @@ def augment_train_raw(
     train_langs: List[str],
     cfg: RunConfig,
     condition_name: str,
+    device: Optional[torch.device] = None,
 ) -> Dataset:
-    """EVOLVE-BLOCK: mn oversample, language reweighting, etc."""
-    return raw_ds
+    """EVOLVE-BLOCK: mn oversample, language reweighting, etc.
+
+    typology_guided_diversity_expansion: replace a fraction
+    (cfg.replacement_ratio) of BASE_CLUSTER's sentences with sentences from
+    other pool languages, keeping total N fixed by construction (removed
+    count == added count). Only applies to embedding_clustering /
+    linguistic_clustering; all other conditions are returned unchanged.
+    """
+    if condition_name not in ("embedding_clustering", "linguistic_clustering"):
+        return raw_ds
+    ratio = getattr(cfg, "replacement_ratio", 0.0) or 0.0
+    if ratio <= 0:
+        return raw_ds
+
+    other_langs = [l for l in LANGUAGES if l not in train_langs]
+    if not other_langs:
+        return raw_ds
+
+    n_total = len(raw_ds)
+    n_replace = int(n_total * ratio)
+    if n_replace <= 0:
+        return raw_ds
+
+    source = "linguistic" if condition_name == "linguistic_clustering" else "embedding"
+    ranked_langs = _rank_other_langs_by_distance(other_langs, train_langs, source, cfg, device)
+
+    rng = np.random.RandomState(cfg.seed)
+    drop_indices = rng.choice(n_total, size=min(n_replace, n_total), replace=False)
+    keep_indices = sorted(set(range(n_total)) - set(drop_indices.tolist()))
+    base_remaining = raw_ds.select(keep_indices)
+
+    candidate_langs: List[str] = []
+    running_n = 0
+    for lang in ranked_langs:
+        candidate_langs.append(lang)
+        running_n += effective_train_count(lang, cfg)
+        if running_n >= n_replace:
+            break
+
+    candidate_ds = load_raw_ner_dataset(candidate_langs, "train", cfg)
+    cand_n = len(candidate_ds)
+    sample_size = min(n_replace, cand_n)
+    cand_indices = rng.choice(cand_n, size=sample_size, replace=False)
+    sampled_candidates = candidate_ds.select(sorted(cand_indices.tolist()))
+
+    new_ds = concatenate_datasets([base_remaining, sampled_candidates])
+    assert len(new_ds) == n_total, f"replacement changed N: {len(new_ds)} != {n_total}"
+    return new_ds
 
 
 # ---------------------------------------------------------------------------
@@ -853,7 +936,7 @@ def run_condition(
     budget_meta: Dict = {}
     if train_ds is None:
         raw_ds = raw_train_ds or load_raw_ner_dataset(train_langs, "train", cfg)
-        raw_ds = augment_train_raw(raw_ds, train_langs, cfg, name)
+        raw_ds = augment_train_raw(raw_ds, train_langs, cfg, name, device)
         raw_ds, budget_meta = apply_training_budget(raw_ds, cfg, name)
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         train_ds = tokenize_ner_dataset(raw_ds, tokenizer, cfg.max_length)
@@ -1136,6 +1219,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--batch_size", type=int, default=16)
     p.add_argument("--learning_rate", type=float, default=5e-5)
     p.add_argument("--max_length", type=int, default=128)
+    p.add_argument("--replacement_ratio", type=float, default=0.0,
+                   help="Fraction of BASE_CLUSTER sentences to swap for other-language sentences "
+                        "in embedding_clustering/linguistic_clustering (typology_guided_diversity_expansion).")
     p.add_argument("--max_train_per_lang", type=int, default=0,
                    help="Per-language train cap (0 = full WikiAnn, no cap)")
     p.add_argument("--max_embed_samples_per_lang", type=int, default=200)
@@ -1163,8 +1249,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--skip_conditions",
         type=str,
-        default="",
-        help="Comma-separated conditions to skip, e.g. 'all_mixed' or 'all_mixed,per_language'",
+        default="all_mixed",
+        help="Comma-separated conditions to skip (default: all_mixed for fair floor). "
+        "Use '' to run all six conditions.",
     )
     p.add_argument("--quick", action="store_true", help="Smoke test (1 epoch, tiny data)")
     args = p.parse_args()
