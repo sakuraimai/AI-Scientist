@@ -299,7 +299,7 @@ HEAD_INITIAL = {"ru"}
 ```
 templates/asian_ner/CLAUDE_HANDOFF.md を読んでコンテキストを復元してください。
 次のタスク: [例: prompt.json に run #2 失敗を追記 / script_aware の Pod 起動手順 / screening PDF 用1ページサマリー]
-リポジトリは sakuraimai/AI-Scientist、ブランチ ai-typology-weighted-mixture-results。
+リポジトリは sakuraimai/AI-Scientist、ブランチ ai-typology-diversity-expansion-results（2026-08-11 時点の最新作業）。
 ```
 
 ---
@@ -327,6 +327,68 @@ results/asian_ner/
 launch_scientist.py      # --idea-names 追加済み
 ai_scientist/generate_ideas.py
 ```
+
+---
+
+## 15. AI Run #3 — `typology_guided_diversity_expansion`（2026-08-11、進行中）
+
+### 背景・出発点
+
+Run #1・#2 の失敗を踏まえたディスカッション（Claude とのセッション）から、次の再定義に至った:
+
+> typology（言語学的知見）は「似た言語に絞り込む」ためではなく、「同一予算の中で、どの言語を多様性として加えるべきかを設計する」ために使うべきである。
+
+これを検証するアイデアとして `typology_guided_diversity_expansion` を新規追加し、ブランチ `ai-typology-diversity-expansion-results` で作業中。
+
+### 設計（最終版）
+
+- `cluster_linguistic()`/`cluster_embedding()` は**変更しない**。`BASE_CLUSTER = ["ja","ko","mn"]`（floor と同じ）を定数としてハードコード
+- `embedding_clustering`/`linguistic_clustering` は、`augment_train_raw()` で **入れ替え（replacement）** により多様性を導入する: 入れ替え比率 `replacement_ratio`（R）に応じて、BASE_CLUSTER の文をランダムに `n_replace` 文だけ外し、他言語（29言語プールから BASE_CLUSTER を除いた 26 言語）から同数を持ち込む。**N は入れ替えなので常に一定（40,100）**
+- 持ち込む言語のランキング基準は条件ごとに異なる（embeddings vs linguistics の対比を保つため）:
+  - `linguistic_clustering`: 純粋な typology 距離（HEAD_FINAL/HEAD_INITIAL グループ、embedding 不使用）
+  - `embedding_clustering`: 純粋な埋め込み距離（typology ペナルティなし）
+- R は 5 run で 0.10, 0.25, 0.50, 0.75, 0.90 程度にスイープ（単調増加・重複禁止）
+- `matched_random_embedding`/`matched_random_linguistic`/`all_mixed`/`per_language` には一切影響しない（`augment_train_raw()` は `condition_name` で embedding/linguistic 条件のみに限定）
+
+### 重大な発見（レポート A1〜A4 に反映済み）
+
+1. **`cluster_embedding()` は非決定的。** 同じ `HYBRID_TYPOLOGY_PENALTY=1.0` でも、実行のたびに異なるクラスタ（{ja,ko,mn} になったり {mn,ko} に縮小したり）を返す。埋め込み計算（`_sentence_cls_embeddings()`）に乱数が残っているため。→ **クラスタは再計算せず固定値で与える**必要がある、という設計上の教訓
+2. **`prompt.json` は実行フェーズでは一切読まれない。** `perform_experiments()`（実際にコードを書いて走らせる Aider ベースの関数）は `idea["Title"]`/`idea["Experiment"]` のみを受け取り、`prompt.json` は `generate_ideas()`/`check_idea_novelty()` でのみ使われる。`--skip-idea-generation --skip-novelty-check` で起動する限り、`prompt.json` への追記は実行エージェントに一切届かない。**今後、AI への指示は `ideas.json`/`seed_ideas.json` の `Experiment` フィールドに書くこと**（`prompt.json` はあくまで記録・ドキュメントとして書く）
+
+### 試行錯誤の経緯（デバッグの記録）
+
+| 試行 | 内容 | 結果 |
+|---|---|---|
+| v1（自動生成、抽象的な指示） | 「クラスタリング関数は変えるな、`post_cluster_train_langs()` で言語を typology 距離順に追加せよ」という抽象的な指示 | `embedding_clustering` が非決定性で {mn,ko} N=20,100 に縮小（Run #2 と同じ症状） |
+| v2（BASE_CLUSTER ハードコード + 具体的な Dataset 再構築手順を指示） | `pool_indices` の範囲外参照（`IndexError`）→ AI が自己修正するも `raw_ds[i] = ...` という `Dataset` の直接代入（サポート外）で `TypeError`。`MAX_ITERS=4` 到達で `Success: False` | 失敗（自動リトライで解決せず） |
+| v3（さらに具体的な仕様を `ideas.json` に明記） | `load_raw_ner_dataset()` で別途候補プールをロードし `concatenate_datasets`/`select()` で再構築せよ、と指示 | `augment_train_raw()` を**全条件**に適用してしまい、`all_mixed` 等で `other_langs` が空になり `ValueError`。再び `Success: False` |
+| **人間が直接実装**（コミット `7867158`） | `experiment.py` に `BASE_CLUSTER` 定数、`condition_name` でガードした `augment_train_raw()`、`device` の受け渡しを直接実装。AI へのタスクは「`--replacement_ratio` の default 値を run ごとに変えて実行するだけ」に縮小 | 検証中（2026-08-11 実行中） |
+
+**この経緯自体が、AI Scientist の自律性の限界を示す重要な観察**（レポート §6.2 に「第五の観察点」として追記予定）。特に、v2→v3 の自己修正が「クラッシュは直すが実験の意図を壊す」というパターンを繰り返した点、`MAX_ITERS=4` という小さな予算内では収束しなかった点、最終的に疑似コードレベルの人間の仕様指定が必要だった点、を正確に記録すること。
+
+### 現在の状態（2026-08-11 時点）
+
+- Pod で `typology_guided_diversity_expansion_v3.log` を実行中。`run_1` は学習ログが流れており、`augment_train_raw()` を通過している（過去の v2 で落ちていた地点は超えている）
+- 完了確認コマンド:
+  ```bash
+  ls -dt results/asian_ner/*typology_guided_diversity_expansion*/ | head -1
+  python3 -c "
+  import json
+  d = json.load(open('<最新フォルダ>/run_1/detailed_results.json'))
+  s = list(d.values())[0]
+  for cond in ['embedding_clustering','linguistic_clustering','matched_random_embedding','matched_random_linguistic']:
+      if cond in s:
+          print(cond, '| n =', s[cond].get('n_train_samples'), '| langs =', s[cond].get('train_langs'))
+  "
+  ```
+  確認事項: (a) 全条件で N=40,100 に揃っているか、(b) `embedding_clustering`/`linguistic_clustering` の `train_langs` に {ja,ko,mn} 以外の言語が R に応じて含まれているか
+- 完走後は run_2〜5（R=0.25, 0.50, 0.75, 0.90 相当）も同様に確認し、`low_resource_macro_f1`/`average_f1` が `matched_random_embedding`/`matched_random_linguistic` を上回る R があるかを見る
+
+### 次にやること
+
+1. Run #3 の完走確認・結果検証
+2. レポート（Sakana Career/LLM Agents/report_part5_draft.md）に §5.4（結果）と §6.2（デバッグ経緯の考察）を追記
+3. 詳細はレポート側の引き継ぎ文書（`HANDOFF_report_part5.md`、Sakana Career フォルダ）を参照
 
 ---
 
