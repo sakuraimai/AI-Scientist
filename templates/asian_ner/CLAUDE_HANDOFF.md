@@ -366,30 +366,33 @@ Run #1・#2 の失敗を踏まえたディスカッション（Claude とのセ�
 
 **この経緯自体が、AI Scientist の自律性の限界を示す重要な観察**（レポート §6.2 に「第五の観察点」として追記予定）。特に、v2→v3 の自己修正が「クラッシュは直すが実験の意図を壊す」というパターンを繰り返した点、`MAX_ITERS=4` という小さな予算内では収束しなかった点、最終的に疑似コードレベルの人間の仕様指定が必要だった点、を正確に記録すること。
 
-### 現在の状態（2026-08-11 時点）
+### 最終結果（2026-08-11、確定・完了）
 
-- Pod で `typology_guided_diversity_expansion_v3.log` を実行中。`run_1` は学習ログが流れており、`augment_train_raw()` を通過している（過去の v2 で落ちていた地点は超えている）
-- 完了確認コマンド:
-  ```bash
-  ls -dt results/asian_ner/*typology_guided_diversity_expansion*/ | head -1
-  python3 -c "
-  import json
-  d = json.load(open('<最新フォルダ>/run_1/detailed_results.json'))
-  s = list(d.values())[0]
-  for cond in ['embedding_clustering','linguistic_clustering','matched_random_embedding','matched_random_linguistic']:
-      if cond in s:
-          print(cond, '| n =', s[cond].get('n_train_samples'), '| langs =', s[cond].get('train_langs'))
-  "
-  ```
-  確認事項: (a) 全条件で N=40,100 に揃っているか、(b) `embedding_clustering`/`linguistic_clustering` の `train_langs` に {ja,ko,mn} 以外の言語が R に応じて含まれているか
-- 完走後は run_2〜5（R=0.25, 0.50, 0.75, 0.90 相当）も同様に確認し、`low_resource_macro_f1`/`average_f1` が `matched_random_embedding`/`matched_random_linguistic` を上回る R があるかを見る
+`run_1`（R=0.75）、`run_2`（R=0.25）、`run_3`（R=0.50）が完走。人間による実装（クラッシュは解消）にもかかわらず、**3 つの R すべてで結果が完全に一致**した:
 
-### 次にやること
+| Run | R（replacement_ratio） | `embedding_clustering` low_res_f1 | `linguistic_clustering` low_res_f1 | `matched_random_embedding` low_res_f1 | `matched_random_linguistic` low_res_f1 |
+|---|---|---|---|---|---|
+| run_1 | 0.75 | 0.42590962149604966 | 0.4215014099843493 | 0.6248473239808378 | 0.6135156715831162 |
+| run_2 | 0.25 | 0.42590962149604966（同一） | 0.4215014099843493（同一） | 0.6248473239808378（同一） | 0.6135156715831162（同一） |
+| run_3 | 0.50 | 0.42590962149604966（同一） | 0.4215014099843493（同一） | 0.6248473239808378（同一） | 0.6135156715831162（同一） |
 
-1. Run #3 の完走確認・結果検証
-2. レポート（Sakana Career/LLM Agents/report_part5_draft.md）に §5.4（結果）と §6.2（デバッグ経緯の考察）を追記
-3. 詳細はレポート側の引き継ぎ文書（`HANDOFF_report_part5.md`、Sakana Career フォルダ）を参照
+学習中の loss の値（ステップ 1〜3）も 3 run で完全一致することを確認済み（`typology_guided_diversity_expansion_v3.log` の `[linguistic_clustering] train_budget` 直後の行、行番号 380/12392/24321 付近）。**これは効果が小さいのではなく、3 run で使われた学習データが実質的に同一だったことを意味する。**
+
+**コード上の結線（`RunConfig` フィールド、`build_config()`、argparse のデフォルト値、`augment_train_raw()` 内の参照）はすべて確認済みで正しい。** それでも効果が出ない残りの疑い: `tokenize_ner_dataset()` または HuggingFace `datasets` の `.map()` が、`raw_ds.select()` で作った部分集合を、内容ではなく「指紋」だけで判定し、古いキャッシュを再利用してしまっている可能性（HF datasets の既知の落とし穴の一種）。**時間の制約により未確認・未解決のまま終了とした。**
+
+### 結論の位置づけ
+
+Run #3 は Run #1・#2 とは異なる種類の結果である:
+- Run #1・#2: 仮説を検証し、支持されなかった（ネガティブな結果）
+- **Run #3: 3 回の実装修正（AI の自動修正 2 回＋人間による直接実装 1 回）を経てクラッシュは解消したが、パラメータを変えても結果が一切変化せず、仮説を検証すること自体ができなかった（inconclusive）**
+
+結果データは取得済み（コミット `e15543b`、`typology_guided_diversity_expansion_results.tar.gz`）。Pod は停止済み。**これ以上の追加実行は行わない、と判断して終了した。**
+
+### 次にやること（レポート側に引き継ぎ）
+
+1. レポート（`Sakana/LLM Agents/report_part5_draft.md`）に §5.4（Run #3 の結果、inconclusive として記載）と §6.2（デバッグ経緯全体を「第五の観察点」として追記）を執筆する
+2. 詳細・執筆方針はレポート側の引き継ぎ文書（`HANDOFF_report_part5.md`、Sakana Career/LLM Agents フォルダ）を参照。**そちらが今後の作業の主体となる**
 
 ---
 
-*End of handoff memo. Update this file when new runs or commits are added.*
+*End of handoff memo. Run #3 完了・終了（2026-08-11）。*
